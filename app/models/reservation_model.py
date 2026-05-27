@@ -1,4 +1,6 @@
 from sqlalchemy import Column, Integer, String, ForeignKey
+from sqlalchemy.orm import relationship
+
 from app.core.database import Base
 
 class Reserva(Base):
@@ -18,4 +20,19 @@ class Reserva(Base):
         nullable=False
     )
 
-    estado = Column(String(50), default="pendiente")
+    estado = Column(
+        String(50),
+        default="pendiente"
+    )
+
+    # RELACIÓN CON USUARIO
+    usuario = relationship(
+        "Usuario",
+        back_populates="reservas"
+    )
+
+    # RELACIÓN CON CLASE
+    clase = relationship(
+        "Clase",
+        back_populates="reservas"
+    )
