@@ -1,0 +1,11 @@
+from app.models.user_model import Usuario
+from app.models.class_model import Clase
+from app.models.reservation_model import Reserva
+from app.models.payment_model import Pago
+from app.models.genre_model import GeneroClase
+from app.models.instructor_model import Instructor, InstructorGenero
+from app.models.seat_model import Espacio
+from app.models.admin_model import Administrador
+
+
+

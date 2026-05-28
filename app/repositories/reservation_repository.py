@@ -1,38 +1,33 @@
+from typing import Optional
+
 from sqlalchemy.orm import Session
 
 from app.models.reservation_model import Reserva
 
 
-def get_all_reservations(db: Session):
+def create_reservation(db: Session, reservation_data: dict) -> Reserva:
+    reservation = Reserva(**reservation_data)
+    db.add(reservation)
+    db.commit()
+    db.refresh(reservation)
+    return reservation
+
+
+def get_user_reservations(db: Session, user_id: int) -> list[Reserva]:
+    return (
+        db.query(Reserva)
+        .filter(Reserva.id_usuario == user_id)
+        .all()
+    )
+
+
+def get_all_reservations(db: Session) -> list[Reserva]:
     return db.query(Reserva).all()
 
 
-def get_reservation_by_id(
-    db: Session,
-    reservation_id: int
-):
-    return db.query(Reserva).filter(
-        Reserva.id == reservation_id
-    ).first()
-
-
-def get_reservations_by_user(
-    db: Session,
-    user_id: int
-):
-    return db.query(Reserva).filter(
-        Reserva.usuario_id == user_id
-    ).all()
-
-
-def create_reservation(
-    db: Session,
-    reservation_data: dict
-):
-    new_reservation = Reserva(**reservation_data)
-
-    db.add(new_reservation)
-    db.commit()
-    db.refresh(new_reservation)
-
-    return new_reservation
+def get_reservation_by_id(db: Session, reservation_id: int) -> Optional[Reserva]:
+    return (
+        db.query(Reserva)
+        .filter(Reserva.id_reserva == reservation_id)
+        .first()
+    )

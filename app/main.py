@@ -1,19 +1,18 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.core.database import engine, Base
+from app.routes.auth_routes import router as auth_router
+from app.routes.class_routes import router as class_router
+from app.routes.reservation_routes import router as reservation_router
+from app.routes.payment_routes import router as payment_router
+from app.routes.admin_routes import router as admin_router
+from app.routes.admin_auth_routes import router as admin_auth_router
 
-# IMPORTAR MODELOS
-from app.models.user_model import Usuario
-from app.models.class_model import Clase
-from app.models.reservation_model import Reserva
+app = FastAPI(
+    title="JMGym API",
+    version="1.0.0"
+)
 
-# CREAR TABLAS
-Base.metadata.create_all(bind=engine)
-
-app = FastAPI()
-
-# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -22,6 +21,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth_router)
+app.include_router(class_router)
+app.include_router(reservation_router)
+app.include_router(payment_router)
+app.include_router(admin_router)
+app.include_router(admin_auth_router)
+
 @app.get("/")
 def root():
-    return {"message": "API funcionando"}
+    return {
+        "message": "API funcionando"
+    }
