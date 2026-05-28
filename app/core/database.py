@@ -14,7 +14,10 @@ DATABASE_URL = (
     f"@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 )
 
-engine = create_engine(DATABASE_URL)
+engine = create_engine(
+    DATABASE_URL,
+    echo=True
+)
 
 SessionLocal = sessionmaker(
     autocommit=False,
@@ -23,3 +26,10 @@ SessionLocal = sessionmaker(
 )
 
 Base = declarative_base()
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
