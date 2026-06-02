@@ -54,6 +54,7 @@ class ClassResponseSchema(BaseModel):
     nombre_clase: str
     id_genero: int
     id_instructor: int
+    instructor_nombre: Optional[str] = None
     descripcion: Optional[str] = None
     intensidad: IntensidadClase
     reglas_vestimenta: Optional[str] = None
