@@ -8,8 +8,14 @@ from app.repositories.class_repository import (
     create_class,
     update_class,
     delete_class,
+    get_class_seats,
 )
-from app.schemas.class_schemas import ClassCreateSchema, ClassUpdateSchema, ClassResponseSchema
+from app.schemas.class_schemas import (
+    ClassCreateSchema,
+    ClassUpdateSchema,
+    ClassResponseSchema,
+    SeatResponseSchema,
+)
 
 
 def _populate_instructor_name(cls_obj, schema: ClassResponseSchema) -> None:
@@ -78,3 +84,8 @@ def delete_class_service(db: Session, class_id: int) -> dict:
             detail="Clase no encontrada",
         )
     return {"message": "Clase eliminada correctamente"}
+
+
+def get_class_seats_service(db: Session, class_id: int) -> list[SeatResponseSchema]:
+    seats = get_class_seats(db, class_id)
+    return [SeatResponseSchema.model_validate(s) for s in seats]

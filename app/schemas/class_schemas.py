@@ -4,6 +4,7 @@ from typing import Optional
 from pydantic import BaseModel, ConfigDict
 
 from app.enum.class_enums import IntensidadClase, EstadoClase
+from app.enum.espacio_enums import EstadoEspacio
 
 
 class ClassCreateSchema(BaseModel):
@@ -71,3 +72,12 @@ class ClassResponseSchema(BaseModel):
     estado: Optional[EstadoClase] = None
     motivo_cancelacion: Optional[str] = None
     fecha_creacion: datetime
+
+
+class SeatResponseSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id_espacio: int
+    id_clase: int
+    codigo_espacio: str
+    estado: EstadoEspacio

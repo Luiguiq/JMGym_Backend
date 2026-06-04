@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.schemas.class_schemas import ClassCreateSchema, ClassUpdateSchema, ClassResponseSchema
+from app.schemas.class_schemas import ClassCreateSchema, ClassUpdateSchema, ClassResponseSchema, SeatResponseSchema
 from app.security import get_db
 from app.services.class_service import (
     get_classes_service,
@@ -10,6 +10,7 @@ from app.services.class_service import (
     create_class_service,
     update_class_service,
     delete_class_service,
+    get_class_seats_service,
 )
 
 router = APIRouter(prefix="/classes", tags=["Classes"])
@@ -43,3 +44,8 @@ def update_class(class_id: int, data: ClassUpdateSchema, db: Session = Depends(g
 @router.delete("/{class_id}")
 def delete_class(class_id: int, db: Session = Depends(get_db)):
     return delete_class_service(db, class_id)
+
+
+@router.get("/{class_id}/seats", response_model=list[SeatResponseSchema])
+def get_class_seats_endpoint(class_id: int, db: Session = Depends(get_db)):
+    return get_class_seats_service(db, class_id)
