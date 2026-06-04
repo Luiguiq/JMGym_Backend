@@ -49,15 +49,21 @@ def create_reservation_service(
     espacio = (
         db.query(Espacio)
         .filter(
+            Espacio.id_espacio == data.seat_id,
             Espacio.id_clase == data.class_id,
-            Espacio.estado == "DISPONIBLE",
         )
         .first()
     )
     if not espacio:
         raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Espacio no encontrado para esta clase",
+        )
+
+    if espacio.estado != "DISPONIBLE":
+        raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No hay espacios disponibles para esta clase",
+            detail="El espacio seleccionado no esta disponible",
         )
 
     try:

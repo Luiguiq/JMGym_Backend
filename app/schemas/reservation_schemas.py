@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class ReservationCreateSchema(BaseModel):
     class_id: int = Field(validation_alias="classId")
+    seat_id: int = Field(validation_alias="seatId")
 
 
 class ClaseReservaSchema(BaseModel):
