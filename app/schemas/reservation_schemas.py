@@ -1,19 +1,30 @@
-from datetime import date, datetime
+from datetime import date, datetime, time
 from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
-
-from app.enum.reservation_enums import EstadoPagoReserva, EstadoReserva
 
 
 class ReservationCreateSchema(BaseModel):
     class_id: int = Field(validation_alias="classId")
 
 
-# NUEVO: Esquema para extraer el nombre de la clase automáticamente
 class ClaseReservaSchema(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, json_encoders={time: lambda t: t.strftime("%H:%M")})
+
     nombre_clase: str
+    hora_inicio: Optional[time] = None
+    hora_fin: Optional[time] = None
+    duracion_minutos: Optional[int] = None
+    fecha: Optional[date] = None
+    precio: Optional[float] = None
+    instructor_nombre: Optional[str] = None
+    imagen_clase: Optional[str] = None
+
+
+class EspacioReservaSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    codigo_espacio: str
 
 
 class ReservationResponseSchema(BaseModel):
@@ -25,13 +36,13 @@ class ReservationResponseSchema(BaseModel):
     id_clase: int
     id_espacio: int
     metodo_pago: str
-    estado_pago: EstadoPagoReserva
-    estado_reserva: EstadoReserva
+    estado_pago: str
+    estado_reserva: str
     monto: float
     fecha_reserva: datetime
     fecha_limite_pago: Optional[datetime] = None
     fecha_clase: date
     qr_checkin: Optional[str] = None
 
-    # NUEVO: Le pedimos a FastAPI que incluya los datos de la clase
     clase: Optional[ClaseReservaSchema] = None
+    espacio: Optional[EspacioReservaSchema] = None
