@@ -34,11 +34,30 @@ def get_today_classes(db: Session) -> list[Clase]:
     )
 
 
+def _generate_seat_codes(total: int) -> list[str]:
+    cols = 5
+    codes = []
+    for i in range(total):
+        row = i // cols
+        col = i % cols
+        letter = chr(65 + row)
+        codes.append(f"{letter}{col + 1}")
+    return codes
+
+
 def create_class(db: Session, class_data: dict) -> Clase:
     cls = Clase(**class_data)
     db.add(cls)
     db.commit()
     db.refresh(cls)
+
+    total = cls.cupos_totales or 0
+    if total > 0:
+        codes = _generate_seat_codes(total)
+        seats = [Espacio(id_clase=cls.id_clase, codigo_espacio=c) for c in codes]
+        db.add_all(seats)
+        db.commit()
+
     return cls
 
 
