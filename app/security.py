@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.core.config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
 from app.core.database import SessionLocal
 from app.models.user_model import Usuario
+from app.models.admin_model import Administrador
 
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
@@ -69,3 +70,35 @@ def get_current_user(
     if user is None:
         raise credentials_exception
     return user
+
+
+def get_current_admin(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db),
+) -> Administrador:
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="No se pudieron validar las credenciales de administrador",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        correo: Optional[str] = payload.get("sub")
+        if correo is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+
+    admin = (
+        db.query(Administrador)
+        .filter(Administrador.correo_institucional == correo)
+        .first()
+    )
+    if admin is None:
+        raise credentials_exception
+    if admin.estado != "ACTIVO":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cuenta de administrador inactiva",
+        )
+    return admin
