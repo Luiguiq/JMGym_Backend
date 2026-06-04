@@ -7,6 +7,7 @@ from app.services.class_service import (
     get_classes_service,
     get_today_classes_service,
     get_class_detail_service,
+    get_classes_by_instructor_service,
     create_class_service,
     update_class_service,
     delete_class_service,
@@ -24,6 +25,11 @@ def list_today_classes(db: Session = Depends(get_db)):
 @router.get("", response_model=list[ClassResponseSchema])
 def list_classes(db: Session = Depends(get_db)):
     return get_classes_service(db)
+
+
+@router.get("/instructor/{instructor_id}", response_model=list[ClassResponseSchema])
+def list_classes_by_instructor(instructor_id: int, db: Session = Depends(get_db)):
+    return get_classes_by_instructor_service(db, instructor_id)
 
 
 @router.get("/{class_id}", response_model=ClassResponseSchema)

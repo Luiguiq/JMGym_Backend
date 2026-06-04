@@ -5,6 +5,7 @@ from app.repositories.class_repository import (
     get_active_classes,
     get_today_classes,
     get_class_by_id,
+    get_classes_by_instructor,
     create_class,
     update_class,
     delete_class,
@@ -84,6 +85,16 @@ def delete_class_service(db: Session, class_id: int) -> dict:
             detail="Clase no encontrada",
         )
     return {"message": "Clase eliminada correctamente"}
+
+
+def get_classes_by_instructor_service(db: Session, instructor_id: int) -> list[ClassResponseSchema]:
+    classes = get_classes_by_instructor(db, instructor_id)
+    result = []
+    for c in classes:
+        schema = ClassResponseSchema.model_validate(c)
+        _populate_instructor_name(c, schema)
+        result.append(schema)
+    return result
 
 
 def get_class_seats_service(db: Session, class_id: int) -> list[SeatResponseSchema]:

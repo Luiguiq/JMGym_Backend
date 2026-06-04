@@ -62,5 +62,17 @@ def delete_class(db: Session, class_id: int) -> bool:
     return True
 
 
+def get_classes_by_instructor(db: Session, instructor_id: int) -> list[Clase]:
+    return (
+        db.query(Clase)
+        .filter(Clase.id_instructor == instructor_id)
+        .filter(
+            (Clase.estado == EstadoClase.ACTIVA) | (Clase.estado.is_(None))
+        )
+        .order_by(Clase.fecha.desc(), Clase.hora_inicio)
+        .all()
+    )
+
+
 def get_class_seats(db: Session, class_id: int) -> list[Espacio]:
     return db.query(Espacio).filter(Espacio.id_clase == class_id).all()
