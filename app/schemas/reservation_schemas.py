@@ -10,6 +10,12 @@ class ReservationCreateSchema(BaseModel):
     class_id: int = Field(validation_alias="classId")
 
 
+# NUEVO: Esquema para extraer el nombre de la clase automáticamente
+class ClaseReservaSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    nombre_clase: str
+
+
 class ReservationResponseSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -26,3 +32,6 @@ class ReservationResponseSchema(BaseModel):
     fecha_limite_pago: Optional[datetime] = None
     fecha_clase: date
     qr_checkin: Optional[str] = None
+
+    # NUEVO: Le pedimos a FastAPI que incluya los datos de la clase
+    clase: Optional[ClaseReservaSchema] = None

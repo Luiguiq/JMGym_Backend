@@ -4,6 +4,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.models.class_model import Clase
+from app.models.seat_model import Espacio
 from app.enum.class_enums import EstadoClase
 
 
@@ -59,3 +60,7 @@ def delete_class(db: Session, class_id: int) -> bool:
     db.delete(cls)
     db.commit()
     return True
+
+
+def get_class_seats(db: Session, class_id: int) -> list[Espacio]:
+    return db.query(Espacio).filter(Espacio.id_clase == class_id).all()
