@@ -73,15 +73,27 @@ def create_reservation_service(
         espacio.estado = "RESERVADO"
         codigo = uuid.uuid4().hex[:10].upper()
 
+        payment = (
+            MetodoPago.EFECTIVO
+            if data.payment_method.upper() == "EFECTIVO"
+            else MetodoPago.YAPE
+        )
+
+        estado_pago = (
+            EstadoPagoReserva.PENDIENTE
+            if payment == MetodoPago.EFECTIVO
+            else EstadoPagoReserva.PAGADO
+        )
+
         reservation = Reserva(
             codigo_reserva=codigo,
             id_usuario=user_id,
             id_clase=data.class_id,
             id_espacio=espacio.id_espacio,
-            metodo_pago=MetodoPago.YAPE,
+            metodo_pago=payment,
             monto=float(cls.precio) if cls.precio else 0.0,
             fecha_clase=cls.fecha,
-            estado_pago=EstadoPagoReserva.PAGADO,
+            estado_pago=estado_pago,
             estado_reserva=EstadoReserva.ACTIVA,
         )
         db.add(reservation)

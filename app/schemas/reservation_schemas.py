@@ -7,7 +7,8 @@ from pydantic import BaseModel, ConfigDict, Field
 class ReservationCreateSchema(BaseModel):
     class_id: int = Field(validation_alias="classId")
     seat_id: int = Field(validation_alias="seatId")
-
+    payment_method: str = Field(validation_alias="paymentMethod")
+    
 
 class ClaseReservaSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True, json_encoders={time: lambda t: t.strftime("%H:%M")})
