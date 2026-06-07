@@ -22,10 +22,6 @@ from app.enum.reservation_enums import MetodoPago, EstadoPagoReserva, EstadoRese
 class Reserva(Base):
     __tablename__ = "reservas"
 
-    __table_args__ = (
-        UniqueConstraint("id_usuario", "fecha_clase", "estado_reserva"),
-    )
-
     id_reserva: Mapped[int] = mapped_column(
         Integer, primary_key=True, index=True, autoincrement=True
     )
