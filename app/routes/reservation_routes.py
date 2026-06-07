@@ -40,6 +40,27 @@ def list_all_reservations(
 ):
     return get_all_reservations_service(db)
 
+@router.get("/{reservation_id}", response_model=ReservationResponseSchema)
+def get_reservation_detail(
+    reservation_id: int,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user),
+):
+    reservation = get_reservation_by_id(db, reservation_id)
+
+    if not reservation:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Reserva no encontrada",
+        )
+
+    if reservation.id_usuario != current_user.id_usuario:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No puedes acceder a esta reserva",
+        )
+
+    return ReservationResponseSchema.model_validate(reservation)
 
 @router.patch("/{reservation_id}/cancel", response_model=ReservationResponseSchema)
 def cancel_reservation(

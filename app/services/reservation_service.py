@@ -46,6 +46,22 @@ def create_reservation_service(
             detail="Ya tienes una reserva activa para esta clase",
         )
 
+    existing_same_date = (
+        db.query(Reserva)
+        .filter(
+            Reserva.id_usuario == user_id,
+            Reserva.fecha_clase == cls.fecha,
+            Reserva.estado_reserva == EstadoReserva.ACTIVA,
+        )
+        .first()
+    )
+
+    if existing_same_date:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Ya tienes una reserva activa para esa fecha",
+        )
+
     espacio = (
         db.query(Espacio)
         .filter(
