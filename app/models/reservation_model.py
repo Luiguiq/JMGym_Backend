@@ -17,6 +17,10 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 from app.enum.reservation_enums import MetodoPago, EstadoPagoReserva, EstadoReserva
+from app.models.class_model import Clase
+from app.models.payment_model import Pago
+from app.models.seat_model import Espacio
+from app.models.user_model import Usuario
 
 
 class Reserva(Base):
