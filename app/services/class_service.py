@@ -1,6 +1,7 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.enum.class_enums import EstadoClase
 from app.repositories.class_repository import (
     get_active_classes,
     get_today_classes,
@@ -16,6 +17,11 @@ from app.schemas.class_schemas import (
     ClassUpdateSchema,
     ClassResponseSchema,
     SeatResponseSchema,
+)
+from app.services.notification_service import (
+    notify_class_schedule_change,
+    notify_class_instructor_change,
+    notify_class_cancelled,
 )
 
 
@@ -66,12 +72,32 @@ def create_class_service(db: Session, data: ClassCreateSchema) -> ClassResponseS
 def update_class_service(
     db: Session, class_id: int, data: ClassUpdateSchema
 ) -> ClassResponseSchema:
-    cls = update_class(db, class_id, data.model_dump(exclude_unset=True))
+    cls = get_class_by_id(db, class_id)
     if not cls:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Clase no encontrada",
         )
+
+    old_horario = f"{cls.hora_inicio.strftime('%H:%M')} - {cls.hora_fin.strftime('%H:%M')}" if cls.hora_inicio else ""
+    old_instructor = cls.instructor.nombre_completo if cls.instructor else ""
+    old_estado = cls.estado
+
+    cls = update_class(db, class_id, data.model_dump(exclude_unset=True))
+
+    new_horario = f"{cls.hora_inicio.strftime('%H:%M')} - {cls.hora_fin.strftime('%H:%M')}" if cls.hora_inicio else ""
+    new_instructor = cls.instructor.nombre_completo if cls.instructor else ""
+
+    if old_horario and old_horario != new_horario:
+        notify_class_schedule_change(db, cls, old_horario, new_horario)
+
+    if old_instructor and old_instructor != new_instructor:
+        notify_class_instructor_change(db, cls, old_instructor, new_instructor)
+
+    if old_estado != EstadoClase.CANCELADA and cls.estado == EstadoClase.CANCELADA:
+        motivo = data.motivo_cancelacion or ""
+        notify_class_cancelled(db, cls, motivo)
+
     schema = ClassResponseSchema.model_validate(cls)
     _populate_instructor_name(cls, schema)
     return schema

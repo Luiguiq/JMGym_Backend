@@ -9,6 +9,7 @@ from app.repositories.reservation_repository import get_reservation_by_id
 from app.schemas.payment_schemas import PaymentCreateSchema, PaymentResponseSchema, PaymentConfirmSchema
 from app.enum.payment_enums import EstadoPago
 from app.enum.reservation_enums import EstadoPagoReserva
+from app.services.notification_service import notify_payment_confirmed
 
 
 def create_payment_service(
@@ -56,8 +57,10 @@ def confirm_payment_service(
         payment.fecha_pago = datetime.now()
 
         reservation = payment.reserva
+        was_confirmed = False
         if data.estado == EstadoPago.CONFIRMADO:
             reservation.estado_pago = EstadoPagoReserva.PAGADO
+            was_confirmed = True
         elif data.estado == EstadoPago.RECHAZADO:
             reservation.estado_pago = EstadoPagoReserva.PENDIENTE
         elif data.estado == EstadoPago.REEMBOLSADO:
@@ -65,6 +68,11 @@ def confirm_payment_service(
 
         db.commit()
         db.refresh(payment)
+
+        if was_confirmed:
+            notify_payment_confirmed(
+                db, reservation.id_usuario, reservation
+            )
     except Exception:
         db.rollback()
         raise HTTPException(

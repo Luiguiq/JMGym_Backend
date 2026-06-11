@@ -6,8 +6,9 @@ from sqlalchemy.orm import Session
 
 from app.models.user_model import Usuario
 from app.models.reservation_model import Reserva
-from app.security import get_db, get_current_admin, hash_password
+from app.security import get_db, get_current_admin, get_current_user, hash_password
 from app.enum.user_enums import EstadoUsuario
+from app.services.notification_service import notify_account_blocked
 
 router = APIRouter(prefix="/users", tags=["User Management"])
 
@@ -17,6 +18,7 @@ class UserUpdateSchema(BaseModel):
     dni: Optional[str] = None
     correo: Optional[str] = None
     telefono: Optional[str] = None
+    foto_perfil: Optional[str] = None
     password: Optional[str] = None
 
 
@@ -49,6 +51,30 @@ class UserReservationSchema(BaseModel):
     fecha_reserva: Optional[datetime] = None
     fecha_clase: Optional[datetime] = None
     monto: float
+
+
+@router.get("/me", response_model=UserResponseSchema)
+def get_my_profile(
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user),
+):
+    return current_user
+
+
+@router.put("/me", response_model=UserResponseSchema)
+def update_my_profile(
+    data: UserUpdateSchema,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user),
+):
+    update_data = data.model_dump(exclude_unset=True)
+    if "password" in update_data and update_data["password"]:
+        update_data["password_hash"] = hash_password(update_data.pop("password"))
+    for key, value in update_data.items():
+        setattr(current_user, key, value)
+    db.commit()
+    db.refresh(current_user)
+    return current_user
 
 
 @router.get("", response_model=list[UserResponseSchema])
@@ -110,6 +136,7 @@ def toggle_user_block(user_id: int, db: Session = Depends(get_db), admin: Sessio
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado")
     user.estado = EstadoUsuario.BLOQUEADO if user.estado == EstadoUsuario.ACTIVO else EstadoUsuario.ACTIVO
     db.commit()
+    notify_account_blocked(db, user.id_usuario, user.estado.value)
     return {"message": f"Usuario {'bloqueado' if user.estado == EstadoUsuario.BLOQUEADO else 'desbloqueado'} correctamente"}
 
 
