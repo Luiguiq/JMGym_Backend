@@ -28,3 +28,6 @@ class Usuario(Base):
     )
 
     reservas: Mapped[list["Reserva"]] = relationship(back_populates="usuario")
+    notificaciones: Mapped[list["Notificacion"]] = relationship(
+        back_populates="usuario", cascade="all, delete-orphan"
+    )

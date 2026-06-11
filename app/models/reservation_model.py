@@ -62,3 +62,4 @@ class Reserva(Base):
     clase: Mapped["Clase"] = relationship(back_populates="reservas")
     espacio: Mapped["Espacio"] = relationship(back_populates="reserva")
     pagos: Mapped[list["Pago"]] = relationship(back_populates="reserva")
+    cancelacion: Mapped[Optional["Cancelacion"]] = relationship(back_populates="reserva")

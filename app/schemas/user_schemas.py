@@ -7,7 +7,7 @@ class UserRegisterSchema(BaseModel):
     name: str = Field(validation_alias="nombre_completo")
     email: EmailStr = Field(validation_alias="correo_personal")
     password: str
-    dni: Optional[str] = None
+    dni: str
 
     model_config = {"populate_by_name": True}
 
