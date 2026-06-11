@@ -46,6 +46,22 @@ def create_reservation_service(
             detail="Ya tienes una reserva activa para esta clase",
         )
 
+    existing_same_date = (
+        db.query(Reserva)
+        .filter(
+            Reserva.id_usuario == user_id,
+            Reserva.fecha_clase == cls.fecha,
+            Reserva.estado_reserva == EstadoReserva.ACTIVA,
+        )
+        .first()
+    )
+
+    if existing_same_date:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Ya tienes una reserva activa para esa fecha",
+        )
+
     espacio = (
         db.query(Espacio)
         .filter(
@@ -73,15 +89,27 @@ def create_reservation_service(
         espacio.estado = "RESERVADO"
         codigo = uuid.uuid4().hex[:10].upper()
 
+        payment = (
+            MetodoPago.EFECTIVO
+            if data.payment_method.upper() == "EFECTIVO"
+            else MetodoPago.YAPE
+        )
+
+        estado_pago = (
+            EstadoPagoReserva.PENDIENTE
+            if payment == MetodoPago.EFECTIVO
+            else EstadoPagoReserva.PAGADO
+        )
+
         reservation = Reserva(
             codigo_reserva=codigo,
             id_usuario=user_id,
             id_clase=data.class_id,
             id_espacio=espacio.id_espacio,
-            metodo_pago=MetodoPago.YAPE,
+            metodo_pago=payment,
             monto=float(cls.precio) if cls.precio else 0.0,
             fecha_clase=cls.fecha,
-            estado_pago=EstadoPagoReserva.PAGADO,
+            estado_pago=estado_pago,
             estado_reserva=EstadoReserva.ACTIVA,
         )
         db.add(reservation)

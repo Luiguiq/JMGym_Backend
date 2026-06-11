@@ -17,14 +17,14 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 from app.enum.reservation_enums import MetodoPago, EstadoPagoReserva, EstadoReserva
+from app.models.class_model import Clase
+from app.models.payment_model import Pago
+from app.models.seat_model import Espacio
+from app.models.user_model import Usuario
 
 
 class Reserva(Base):
     __tablename__ = "reservas"
-
-    __table_args__ = (
-        UniqueConstraint("id_usuario", "fecha_clase", "estado_reserva"),
-    )
 
     id_reserva: Mapped[int] = mapped_column(
         Integer, primary_key=True, index=True, autoincrement=True
