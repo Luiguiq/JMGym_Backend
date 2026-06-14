@@ -2,6 +2,7 @@ import uuid
 from typing import Optional
 
 from fastapi import HTTPException, status
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.models.reservation_model import Reserva
@@ -20,6 +21,7 @@ from app.models.cancelacion_model import Cancelacion
 from app.services.notification_service import (
     notify_reservation_created,
     notify_reservation_cancelled,
+    notify_seat_changed,
 )
 
 
@@ -83,6 +85,15 @@ def create_reservation_service(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Espacio no encontrado para esta clase",
         )
+
+    # Auto-fix: liberar asiento si no hay reserva activa que lo ocupe
+    reserva_activa = db.query(Reserva).filter(
+        Reserva.id_espacio == espacio.id_espacio,
+        Reserva.estado_reserva == "ACTIVA",
+    ).first()
+    if espacio.estado != "DISPONIBLE" and not reserva_activa:
+        espacio.estado = "DISPONIBLE"
+        db.commit()
 
     if espacio.estado != "DISPONIBLE":
         raise HTTPException(
@@ -171,6 +182,10 @@ def cancel_reservation_service(
     detalle = cancel_data.detalle if cancel_data else None
 
     try:
+        old_seat = db.query(Espacio).filter(Espacio.id_espacio == reservation.id_espacio).first()
+        if old_seat:
+            old_seat.estado = "DISPONIBLE"
+
         reservation.estado_reserva = EstadoReserva.CANCELADA
 
         cls = get_class_by_id(db, reservation.id_clase)
@@ -223,6 +238,59 @@ def get_reservation_detail_service(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No puedes ver esta reserva",
         )
+    return ReservationResponseSchema.model_validate(reservation)
+
+
+def change_seat_service(
+    db: Session, user_id: int, reservation_id: int, new_seat_id: int
+) -> ReservationResponseSchema:
+    reservation = get_reservation_by_id(db, reservation_id)
+    if not reservation:
+        raise HTTPException(status_code=404, detail="Reserva no encontrada")
+    if reservation.id_usuario != user_id:
+        raise HTTPException(status_code=403, detail="No puedes modificar esta reserva")
+    if reservation.estado_reserva != EstadoReserva.ACTIVA:
+        raise HTTPException(status_code=400, detail="Solo puedes cambiar asiento en reservas activas")
+
+    old_seat = db.query(Espacio).filter(Espacio.id_espacio == reservation.id_espacio).first()
+    new_seat = db.query(Espacio).filter(Espacio.id_espacio == new_seat_id).first()
+
+    if not new_seat or new_seat.id_clase != reservation.id_clase:
+        raise HTTPException(status_code=404, detail="El nuevo espacio no pertenece a esta clase")
+    if new_seat.estado != "DISPONIBLE":
+        raise HTTPException(status_code=400, detail="El nuevo espacio no está disponible")
+
+    try:
+        if old_seat:
+            old_seat.estado = "DISPONIBLE"
+        new_seat.estado = "RESERVADO"
+        reservation.id_espacio = new_seat.id_espacio
+        db.execute(
+            text("""
+                INSERT INTO cambios_espacio (id_reserva, id_espacio_anterior, id_espacio_nuevo)
+                VALUES (:id_reserva, :id_espacio_anterior, :id_espacio_nuevo)
+            """),
+            {
+                "id_reserva": reservation.id_reserva,
+                "id_espacio_anterior": old_seat.id_espacio if old_seat else None,
+                "id_espacio_nuevo": new_seat.id_espacio,
+            },
+        )
+        db.commit()
+        db.refresh(reservation)
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Error al cambiar el asiento")
+
+    try:
+        notify_seat_changed(
+            db, user_id, reservation,
+            old_seat.codigo_espacio if old_seat else "",
+            new_seat.codigo_espacio,
+        )
+    except Exception:
+        pass
+
     return ReservationResponseSchema.model_validate(reservation)
 
 

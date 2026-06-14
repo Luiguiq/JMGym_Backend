@@ -3,6 +3,7 @@ from enum import Enum
 
 class MotivoCancelacion(str, Enum):
     CAMBIO_HORARIO = "CAMBIO_HORARIO"
+    CAMBIO_INSTRUCTOR = "CAMBIO_INSTRUCTOR"
     SALUD = "SALUD"
     ECONOMICO = "ECONOMICO"
     CAMBIO_SECTOR = "CAMBIO_SECTOR"

@@ -4,6 +4,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.models.payment_model import Pago
+from app.models.reservation_model import Reserva
 from app.enum.payment_enums import EstadoPago
 
 
@@ -17,6 +18,16 @@ def create_payment(db: Session, payment_data: dict) -> Pago:
 
 def get_payment_by_id(db: Session, payment_id: int) -> Optional[Pago]:
     return db.query(Pago).filter(Pago.id_pago == payment_id).first()
+
+
+def get_payments_by_user(db: Session, user_id: int) -> list[Pago]:
+    return (
+        db.query(Pago)
+        .join(Pago.reserva)
+        .filter(Reserva.id_usuario == user_id)
+        .order_by(Pago.fecha_pago.desc(), Pago.id_pago.desc())
+        .all()
+    )
 
 
 def get_payments_pending(db: Session) -> list[Pago]:

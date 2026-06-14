@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.models.user_model import Usuario
 from app.models.reservation_model import Reserva
-from app.security import get_db, get_current_admin, get_current_user, hash_password
+from app.security import get_db, get_current_admin, get_current_user, hash_password, verify_password
 from app.enum.user_enums import EstadoUsuario
 from app.services.notification_service import notify_account_blocked
 
@@ -20,6 +20,7 @@ class UserUpdateSchema(BaseModel):
     telefono: Optional[str] = None
     foto_perfil: Optional[str] = None
     password: Optional[str] = None
+    old_password: Optional[str] = None
 
 
 class UserCreateFromAdminSchema(BaseModel):
@@ -38,6 +39,7 @@ class UserResponseSchema(BaseModel):
     dni: str
     correo: str
     telefono: Optional[str] = None
+    foto_perfil: Optional[str] = None
     estado: str
     fecha_registro: Optional[datetime] = None
 
@@ -68,8 +70,19 @@ def update_my_profile(
     current_user: Usuario = Depends(get_current_user),
 ):
     update_data = data.model_dump(exclude_unset=True)
-    if "password" in update_data and update_data["password"]:
+
+    if "old_password" in update_data and update_data.get("password"):
+        if not verify_password(update_data["old_password"], current_user.password_hash):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="La contraseña actual no es correcta",
+            )
         update_data["password_hash"] = hash_password(update_data.pop("password"))
+    elif "password" in update_data and update_data["password"]:
+        update_data["password_hash"] = hash_password(update_data.pop("password"))
+
+    update_data.pop("old_password", None)
+
     for key, value in update_data.items():
         setattr(current_user, key, value)
     db.commit()
@@ -99,6 +112,7 @@ def update_user(user_id: int, data: UserUpdateSchema, db: Session = Depends(get_
     update_data = data.model_dump(exclude_unset=True)
     if "password" in update_data and update_data["password"]:
         update_data["password_hash"] = hash_password(update_data.pop("password"))
+    update_data.pop("old_password", None)
 
     for key, value in update_data.items():
         setattr(user, key, value)
