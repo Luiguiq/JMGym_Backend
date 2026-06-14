@@ -23,6 +23,14 @@ class ClaseReservaSchema(BaseModel):
     imagen_clase: Optional[str] = None
 
 
+class UsuarioReservaSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    nombre_completo: str
+    correo: Optional[str] = None
+    foto_perfil: Optional[str] = None
+
+
 class EspacioReservaSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -48,3 +56,4 @@ class ReservationResponseSchema(BaseModel):
 
     clase: Optional[ClaseReservaSchema] = None
     espacio: Optional[EspacioReservaSchema] = None
+    usuario: Optional[UsuarioReservaSchema] = None

@@ -11,6 +11,7 @@ from app.models.reservation_model import Reserva
 from app.models.class_model import Clase
 from app.models.user_model import Usuario
 from app.models.cancelacion_model import Cancelacion
+from app.models.seat_model import Espacio
 from app.repositories import notification_repository as repo
 from app.schemas.notification_schemas import (
     NotificationResponseSchema,
@@ -110,6 +111,20 @@ def notify_payment_confirmed(
         titulo="Pago confirmado",
         mensaje=f"Tu pago de S/ {reservation.monto:.2f} para {reservation.clase.nombre_clase} ha sido confirmado.",
         tipo=TipoNotificacion.PAGO_CONFIRMADO,
+        id_reserva=reservation.id_reserva,
+        id_clase=reservation.id_clase,
+    )
+
+
+def notify_seat_changed(
+    db: Session, user_id: int, reservation: Reserva, old_seat_code: str, new_seat_code: str
+) -> NotificationResponseSchema:
+    return _create_notification(
+        db,
+        user_id=user_id,
+        titulo="Asiento cambiado",
+        mensaje=f"Tu asiento para {reservation.clase.nombre_clase} cambió de {old_seat_code} a {new_seat_code}.",
+        tipo=TipoNotificacion.CAMBIO_ESPACIO,
         id_reserva=reservation.id_reserva,
         id_clase=reservation.id_clase,
     )
@@ -344,6 +359,10 @@ def respond_to_notification_service(
                 .first()
             )
             if reservation and reservation.estado_reserva == "ACTIVA":
+                old_seat = db.query(Espacio).filter(Espacio.id_espacio == reservation.id_espacio).first()
+                if old_seat:
+                    old_seat.estado = "DISPONIBLE"
+
                 reservation.estado_reserva = "CANCELADA"
                 cls = reservation.clase
                 if cls and cls.cupos_disponibles is not None:

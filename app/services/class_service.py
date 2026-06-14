@@ -124,5 +124,18 @@ def get_classes_by_instructor_service(db: Session, instructor_id: int) -> list[C
 
 
 def get_class_seats_service(db: Session, class_id: int) -> list[SeatResponseSchema]:
+    from app.models.reservation_model import Reserva
     seats = get_class_seats(db, class_id)
-    return [SeatResponseSchema.model_validate(s) for s in seats]
+    active_seat_ids = set(
+        r.id_espacio for r in db.query(Reserva.id_espacio).filter(
+            Reserva.id_clase == class_id,
+            Reserva.estado_reserva == "ACTIVA",
+        ).all()
+    )
+    result = []
+    for s in seats:
+        if s.estado in ("RESERVADO", "OCUPADO") and s.id_espacio not in active_seat_ids:
+            s.estado = "DISPONIBLE"
+            db.commit()
+        result.append(SeatResponseSchema.model_validate(s))
+    return result

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Optional
 
 from pydantic import BaseModel, ConfigDict
@@ -26,6 +26,23 @@ class PaymentResponseSchema(BaseModel):
     fecha_pago: Optional[datetime] = None
     qr_yape: Optional[str] = None
     confirmado_por_admin: Optional[int] = None
+
+
+class PaymentHistoryResponseSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id_pago: int
+    id_reserva: int
+    metodo_pago: MetodoPago
+    estado: EstadoPago
+    monto: float
+    codigo_operacion: Optional[str] = None
+    fecha_pago: Optional[datetime] = None
+    nombre_clase: Optional[str] = None
+    fecha_clase: Optional[date] = None
+    hora_inicio: Optional[str] = None
+    hora_fin: Optional[str] = None
+    codigo_reserva: Optional[str] = None
 
 
 class PaymentConfirmSchema(BaseModel):

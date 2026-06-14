@@ -18,6 +18,7 @@ from app.routes.genre_routes import router as genre_router
 from app.routes.admin_user_routes import router as admin_user_router
 from app.routes.user_routes import router as user_router
 from app.routes.upload_routes import router as upload_router
+from app.routes.cancelacion_routes import router as cancelacion_router
 from app.routes.notification_routes import router as notification_router
 
 Base.metadata.create_all(bind=engine)
@@ -40,16 +41,28 @@ try:
 except Exception:
     pass  # La tabla podría no existir aún, no importa
 
+# Eliminar unique constraint que impide cancelar múltiples veces en misma fecha
+try:
+    with engine.connect() as conn:
+        conn.execute(text("DROP INDEX uq_usuario_dia_activa ON reservas"))
+        conn.commit()
+except Exception:
+    pass
+
 app = FastAPI(
     title="JMGym API",
     version="1.0.0"
 )
 
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",")
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS")
+if ALLOWED_ORIGINS:
+    cors_kwargs = {"allow_origins": ALLOWED_ORIGINS.split(",")}
+else:
+    cors_kwargs = {"allow_origin_regex": r"https?://(localhost|127\.0\.0\.1)(:\d+)?"}
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
+    **cors_kwargs,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -71,6 +84,7 @@ app.include_router(admin_user_router, prefix="/api")
 app.include_router(user_router, prefix="/api")
 app.include_router(upload_router, prefix="/api")
 app.include_router(notification_router, prefix="/api")
+app.include_router(cancelacion_router, prefix="/api")
 
 @app.get("/")
 def root():
