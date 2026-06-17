@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 from typing import Optional
 
 from fastapi import HTTPException, status
@@ -6,6 +7,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.models.reservation_model import Reserva
+from app.models.payment_model import Pago
 from app.models.seat_model import Espacio
 from app.repositories.class_repository import get_class_by_id
 from app.repositories.reservation_repository import (
@@ -16,6 +18,7 @@ from app.repositories.reservation_repository import (
 from app.schemas.reservation_schemas import ReservationCreateSchema, ReservationResponseSchema
 from app.schemas.cancelacion_schemas import CancelacionCreateSchema
 from app.enum.reservation_enums import MetodoPago, EstadoPagoReserva, EstadoReserva
+from app.enum.payment_enums import MetodoPago as MetodoPagoPago, EstadoPago
 from app.enum.cancelacion_enums import MotivoCancelacion, CanceladoPor
 from app.models.cancelacion_model import Cancelacion
 from app.services.notification_service import (
@@ -299,3 +302,48 @@ def get_all_reservations_service(
 ) -> list[ReservationResponseSchema]:
     reservations = get_all_reservations(db)
     return [ReservationResponseSchema.model_validate(r) for r in reservations]
+
+
+def mark_reservation_as_paid_service(
+    db: Session, reservation_id: int
+) -> ReservationResponseSchema:
+    reservation = get_reservation_by_id(db, reservation_id)
+    if not reservation:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Reserva no encontrada",
+        )
+
+    if reservation.estado_reserva != EstadoReserva.ACTIVA:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Solo puedes marcar como pagadas reservas activas",
+        )
+
+    if reservation.estado_pago != EstadoPagoReserva.PENDIENTE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La reserva no está pendiente de pago",
+        )
+
+    try:
+        reservation.estado_pago = EstadoPagoReserva.PAGADO
+        payment = Pago(
+            id_reserva=reservation.id_reserva,
+            metodo_pago=MetodoPagoPago.EFECTIVO,
+            estado=EstadoPago.CONFIRMADO,
+            monto=reservation.monto,
+            fecha_pago=datetime.now(),
+            codigo_operacion=f"EFECTIVO-{reservation.codigo_reserva}",
+        )
+        db.add(payment)
+        db.commit()
+        db.refresh(reservation)
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error al marcar la reserva como pagada",
+        )
+
+    return ReservationResponseSchema.model_validate(reservation)
