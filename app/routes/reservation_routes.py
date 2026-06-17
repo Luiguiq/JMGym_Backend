@@ -8,7 +8,7 @@ from app.models.seat_model import Espacio
 from app.models.cancelacion_model import Cancelacion
 from app.schemas.reservation_schemas import ReservationCreateSchema, ReservationResponseSchema
 from app.schemas.cancelacion_schemas import CancelacionCreateSchema
-from app.security import get_db, get_current_user
+from app.security import get_db, get_current_user, get_current_admin
 from app.repositories.reservation_repository import get_reservation_by_id
 from app.repositories.class_repository import get_class_by_id
 from app.enum.reservation_enums import EstadoReserva
@@ -22,6 +22,7 @@ from app.services.reservation_service import (
     get_all_reservations_service,
     cancel_reservation_service,
     change_seat_service,
+    mark_reservation_as_paid_service,
 )
 
 router = APIRouter(prefix="/reservations", tags=["Reservations"])
@@ -89,6 +90,15 @@ def change_seat(
     current_user: Usuario = Depends(get_current_user),
 ):
     return change_seat_service(db, current_user.id_usuario, reservation_id, seat_id)
+
+
+@router.patch("/{reservation_id}/mark-paid", response_model=ReservationResponseSchema)
+def mark_reservation_as_paid(
+    reservation_id: int,
+    db: Session = Depends(get_db),
+    current_admin=Depends(get_current_admin),
+):
+    return mark_reservation_as_paid_service(db, reservation_id)
 
 
 @router.patch("/{reservation_id}/cancel", response_model=ReservationResponseSchema)

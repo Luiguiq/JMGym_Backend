@@ -4,6 +4,8 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.models.class_model import Clase
+from app.models.payment_model import Pago
+from app.models.reservation_model import Reserva
 from app.models.seat_model import Espacio
 from app.enum.class_enums import EstadoClase
 
@@ -76,6 +78,24 @@ def delete_class(db: Session, class_id: int) -> bool:
     cls = get_class_by_id(db, class_id)
     if not cls:
         return False
+
+    reservation_ids = [
+        row[0]
+        for row in db.query(Reserva.id_reserva)
+        .filter(Reserva.id_clase == class_id)
+        .all()
+    ]
+    if reservation_ids:
+        db.query(Pago).filter(Pago.id_reserva.in_(reservation_ids)).delete(
+            synchronize_session=False
+        )
+        db.query(Reserva).filter(Reserva.id_reserva.in_(reservation_ids)).delete(
+            synchronize_session=False
+        )
+
+    db.query(Espacio).filter(Espacio.id_clase == class_id).delete(
+        synchronize_session=False
+    )
     db.delete(cls)
     db.commit()
     return True
