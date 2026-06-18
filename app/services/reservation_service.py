@@ -26,6 +26,7 @@ from app.services.notification_service import (
     notify_reservation_cancelled,
     notify_seat_changed,
 )
+from app.services.notification_service import notify_refund_processed
 
 
 def create_reservation_service(
@@ -375,5 +376,129 @@ def mark_reservation_as_paid_service(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error al marcar la reserva como pagada",
         )
+
+    return ReservationResponseSchema.model_validate(reservation)
+
+def request_refund_service(
+    db: Session,
+    user_id: int,
+    reservation_id: int,
+):
+    reservation = get_reservation_by_id(
+        db,
+        reservation_id
+    )
+
+    if not reservation:
+        raise HTTPException(
+            status_code=404,
+            detail="Reserva no encontrada"
+        )
+
+    if reservation.id_usuario != user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="No autorizado"
+        )
+
+    if reservation.estado_pago != EstadoPagoReserva.PAGADO:
+        raise HTTPException(
+            status_code=400,
+            detail="Solo reservas pagadas pueden solicitar reembolso"
+        )
+
+    if reservation.estado_reserva != EstadoReserva.ACTIVA:
+        raise HTTPException(
+            status_code=400,
+            detail="La reserva no es elegible"
+        )
+
+    reservation.estado_pago = (
+        EstadoPagoReserva.REEMBOLSO_PENDIENTE
+    )
+
+    db.commit()
+    db.refresh(reservation)
+
+    return ReservationResponseSchema.model_validate(
+        reservation
+    )
+
+def approve_refund_service(
+    db: Session,
+    admin_id: int,
+    reservation_id: int
+) -> ReservationResponseSchema:
+    reservation = get_reservation_by_id(db, reservation_id)
+
+    if not reservation:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Reserva no encontrada",
+        )
+
+    if reservation.estado_pago != EstadoPagoReserva.REEMBOLSO_PENDIENTE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La reserva no tiene un reembolso pendiente",
+        )
+
+    if reservation.estado_reserva != EstadoReserva.ACTIVA:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La reserva no es elegible para reembolso",
+        )
+
+    cls = reservation.clase or get_class_by_id(db, reservation.id_clase)
+    if cls and cls.fecha and cls.hora_inicio:
+        class_start = datetime.combine(cls.fecha, cls.hora_inicio)
+        if datetime.now() >= class_start:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="La clase ya inició o ya terminó",
+            )
+
+    try:
+        old_seat = db.query(Espacio).filter(
+            Espacio.id_espacio == reservation.id_espacio
+        ).first()
+        if old_seat:
+            old_seat.estado = "DISPONIBLE"
+
+        if cls and cls.cupos_disponibles is not None:
+            cls.cupos_disponibles += 1
+
+        reservation.estado_pago = EstadoPagoReserva.REEMBOLSADO
+        reservation.estado_reserva = EstadoReserva.CANCELADA
+
+        cancelacion = Cancelacion(
+            id_reserva=reservation.id_reserva,
+            motivo=MotivoCancelacion.ECONOMICO,
+            detalle="Reembolso aprobado por el administrador",
+            cancelado_por=CanceladoPor.ADMIN,
+            id_admin=admin_id,
+        )
+        db.add(cancelacion)
+
+        db.commit()
+        db.refresh(reservation)
+
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error al aprobar el reembolso",
+        )
+
+    try:
+        notify_refund_processed(
+            db,
+            reservation.id_usuario,
+            float(reservation.monto),
+            cls.nombre_clase if cls else "Clase",
+            reservation.id_reserva,
+        )
+    except Exception:
+        pass
 
     return ReservationResponseSchema.model_validate(reservation)
