@@ -23,6 +23,8 @@ from app.services.reservation_service import (
     cancel_reservation_service,
     change_seat_service,
     mark_reservation_as_paid_service,
+    request_refund_service,
+    approve_refund_service,
 )
 
 router = APIRouter(prefix="/reservations", tags=["Reservations"])
@@ -79,7 +81,6 @@ def get_reservation_detail(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No puedes acceder a esta reserva",
         )
-
     return ReservationResponseSchema.model_validate(reservation)
 
 @router.patch("/{reservation_id}/seat", response_model=ReservationResponseSchema)
@@ -182,3 +183,33 @@ def delete_reservation(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error al cancelar la reserva: {str(e)}",
         )
+
+@router.patch(
+    "/{reservation_id}/refund-request",
+    response_model=ReservationResponseSchema
+)
+def request_refund(
+    reservation_id: int,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user),
+):
+    return request_refund_service(
+        db,
+        current_user.id_usuario,
+        reservation_id
+    )
+
+@router.patch(
+    "/{reservation_id}/refund-approve",
+    response_model=ReservationResponseSchema
+)
+def approve_refund(
+    reservation_id: int,
+    db: Session = Depends(get_db),
+    current_admin=Depends(get_current_admin),
+):
+    return approve_refund_service(
+        db,
+        current_admin.id_admin,
+        reservation_id
+    )
