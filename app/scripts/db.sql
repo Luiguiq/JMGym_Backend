@@ -390,3 +390,16 @@ INSERT INTO clases (
 ('Zumba',       1, 1, 'Clase de baile fitness con ritmos latinos.',  'MEDIA', 60, CURDATE() + INTERVAL 1 DAY, '08:00:00', '09:00:00', 25.00, 40, 40, 5, 'ACTIVA'),
 ('CardioFit',   2, 2, 'Entrenamiento cardiovascular de alta intensidad.', 'ALTA', 45, CURDATE() + INTERVAL 2 DAY, '07:00:00', '07:45:00', 30.00, 30, 30, 5, 'ACTIVA'),
 ('Tren Superior', 3, 3, 'Trabajo de fuerza enfocado en brazos, pecho, hombros y espalda.', 'ALTA', 50, CURDATE() + INTERVAL 3 DAY, '18:00:00', '18:50:00', 35.00, 20, 20, 5, 'ACTIVA');
+
+-- =====================================================
+-- MODIFICACIONES AL ESQUEMA
+-- =====================================================
+
+ALTER TABLE reservas
+MODIFY COLUMN estado_pago ENUM(
+'PENDIENTE',
+'PAGADO',
+'REEMBOLSO_PENDIENTE',
+'REEMBOLSADO'
+) NOT NULL;
+
