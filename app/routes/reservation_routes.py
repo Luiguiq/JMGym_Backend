@@ -79,6 +79,15 @@ def get_reservation_detail(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No puedes acceder a esta reserva",
         )
+    
+    print("CLASE:", reservation.clase)
+    print("INSTRUCTOR:", reservation.clase.instructor)
+    print(
+        "NOMBRE:",
+        reservation.clase.instructor.nombre_completo
+        if reservation.clase.instructor
+        else None
+    )
 
     return ReservationResponseSchema.model_validate(reservation)
 

@@ -110,6 +110,7 @@ def create_reservation_service(
 
         espacio.estado = "RESERVADO"
         codigo = uuid.uuid4().hex[:10].upper()
+        qr_checkin = f"CHECKIN:{codigo}"
 
         payment = (
             MetodoPago.EFECTIVO
@@ -125,6 +126,7 @@ def create_reservation_service(
 
         reservation = Reserva(
             codigo_reserva=codigo,
+            qr_checkin=qr_checkin,
             id_usuario=user_id,
             id_clase=data.class_id,
             id_espacio=espacio.id_espacio,
@@ -227,21 +229,49 @@ def get_user_reservations_service(
 
 
 def get_reservation_detail_service(
-    db: Session, user_id: int, reservation_id: int
+    db: Session,
+    user_id: int,
+    reservation_id: int
 ) -> ReservationResponseSchema:
-    from app.repositories.reservation_repository import get_reservation_by_id as get_reservation_repo
-    reservation = get_reservation_repo(db, reservation_id)
+
+    from app.repositories.reservation_repository import (
+        get_reservation_by_id as get_reservation_repo
+    )
+
+    reservation = get_reservation_repo(
+        db,
+        reservation_id
+    )
+
     if not reservation:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Reserva no encontrada",
+            status_code=404,
+            detail="Reserva no encontrada"
         )
+
     if reservation.id_usuario != user_id:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="No puedes ver esta reserva",
+            status_code=403,
+            detail="No puedes ver esta reserva"
         )
-    return ReservationResponseSchema.model_validate(reservation)
+
+    response = ReservationResponseSchema.model_validate(
+        reservation
+    )
+
+    if (
+        response.clase
+        and reservation.clase
+        and reservation.clase.instructor
+    ):
+        response.clase.instructor_nombre = (
+            reservation
+            .clase
+            .instructor
+            .nombre_completo
+        )
+
+    return response
 
 
 def change_seat_service(
