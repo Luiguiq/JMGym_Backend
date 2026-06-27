@@ -21,33 +21,33 @@ from app.routes.upload_routes import router as upload_router
 from app.routes.cancelacion_routes import router as cancelacion_router
 from app.routes.notification_routes import router as notification_router
 
-Base.metadata.create_all(bind=engine)
+_ON_VERCEL = os.environ.get("VERCEL")
+if not _ON_VERCEL:
+    Base.metadata.create_all(bind=engine)
 
-# Actualizar ENUM de notificaciones para soportar nuevos tipos
-try:
-    with engine.connect() as conn:
-        conn.execute(
-            text(
-                "ALTER TABLE notificaciones "
-                "MODIFY COLUMN tipo ENUM("
-                "'RECORDATORIO','PAGO','PAGO_CONFIRMADO','CAMBIO_HORARIO',"
-                "'CAMBIO_INSTRUCTOR','NUEVA_CLASE','CANCELACION','REEMBOLSO',"
-                "'BLOQUEO_CUENTA','RESERVA_CONFIRMADA','RESERVA_CANCELADA',"
-                "'CAMBIO_ESPACIO','NOTIFICACION_GENERAL'"
-                ") NOT NULL"
+    try:
+        with engine.connect() as conn:
+            conn.execute(
+                text(
+                    "ALTER TABLE notificaciones "
+                    "MODIFY COLUMN tipo ENUM("
+                    "'RECORDATORIO','PAGO','PAGO_CONFIRMADO','CAMBIO_HORARIO',"
+                    "'CAMBIO_INSTRUCTOR','NUEVA_CLASE','CANCELACION','REEMBOLSO',"
+                    "'BLOQUEO_CUENTA','RESERVA_CONFIRMADA','RESERVA_CANCELADA',"
+                    "'CAMBIO_ESPACIO','NOTIFICACION_GENERAL'"
+                    ") NOT NULL"
+                )
             )
-        )
-        conn.commit()
-except Exception:
-    pass  # La tabla podría no existir aún, no importa
+            conn.commit()
+    except Exception:
+        pass
 
-# Eliminar unique constraint que impide cancelar múltiples veces en misma fecha
-try:
-    with engine.connect() as conn:
-        conn.execute(text("DROP INDEX uq_usuario_dia_activa ON reservas"))
-        conn.commit()
-except Exception:
-    pass
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("DROP INDEX uq_usuario_dia_activa ON reservas"))
+            conn.commit()
+    except Exception:
+        pass
 
 app = FastAPI(
     title="JMGym API",
