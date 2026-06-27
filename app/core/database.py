@@ -14,8 +14,13 @@ DATABASE_URL = (
     f"@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 )
 
+_connect_args = {}
+if DB_HOST not in ("localhost", "127.0.0.1"):
+    _connect_args["ssl"] = {"ssl-mode": "REQUIRED"}
+
 engine = create_engine(
     DATABASE_URL,
+    connect_args=_connect_args,
     echo=True
 )
 
