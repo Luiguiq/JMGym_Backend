@@ -21,7 +21,7 @@ if DB_HOST not in ("localhost", "127.0.0.1"):
 engine = create_engine(
     DATABASE_URL,
     connect_args=_connect_args,
-    echo=True
+    echo=DB_HOST in ("localhost", "127.0.0.1")
 )
 
 SessionLocal = sessionmaker(
