@@ -58,7 +58,7 @@ ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS")
 if ALLOWED_ORIGINS:
     cors_kwargs = {"allow_origins": ALLOWED_ORIGINS.split(",")}
 else:
-    cors_kwargs = {"allow_origin_regex": r"https?://(localhost|127\.0\.0\.1)(:\d+)?"}
+    cors_kwargs = {"allow_origin_regex": r"https?://(localhost|127\.0\.0\.1|.*\.vercel\.app)(:\d+)?"}
 
 app.add_middleware(
     CORSMiddleware,
