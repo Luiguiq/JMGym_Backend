@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.models.reservation_model import Reserva
 from app.models.payment_model import Pago
 from app.models.seat_model import Espacio
+from app.models.user_model import Usuario
 from app.repositories.class_repository import get_class_by_id
 from app.repositories.reservation_repository import (
     get_user_reservations,
@@ -27,6 +28,7 @@ from app.services.notification_service import (
     notify_seat_changed,
 )
 from app.services.notification_service import notify_refund_processed
+from app.services.flow_service import create_flow_payment
 
 
 def create_reservation_service(
@@ -119,11 +121,7 @@ def create_reservation_service(
             else MetodoPago.YAPE
         )
 
-        estado_pago = (
-            EstadoPagoReserva.PENDIENTE
-            if payment == MetodoPago.EFECTIVO
-            else EstadoPagoReserva.PAGADO
-        )
+        estado_pago = EstadoPagoReserva.PENDIENTE
 
         reservation = Reserva(
             codigo_reserva=codigo,
@@ -152,7 +150,37 @@ def create_reservation_service(
     except Exception:
         pass
 
-    return ReservationResponseSchema.model_validate(reservation)
+    flow_checkout_url = None
+    if payment == MetodoPago.YAPE:
+        usuario = db.query(Usuario).filter(Usuario.id_usuario == user_id).first()
+        user_email = usuario.correo if usuario and usuario.correo else "pago@usuario.com"
+        try:
+            flow_amount = int(float(cls.precio)) if cls.precio else 0
+            flow_result = create_flow_payment(
+                commerce_order=codigo,
+                amount=flow_amount,
+                email=user_email,
+                subject=f"Reserva {cls.nombre_clase} - {cls.fecha}",
+                optional={"reservation_id": reservation.id_reserva},
+                timeout=1800,
+            )
+            flow_token = flow_result.get("token")
+            flow_url = flow_result.get("url", "")
+            if flow_token and flow_url:
+                flow_checkout_url = f"{flow_url}?token={flow_token}"
+                reservation.flow_token = flow_token
+                db.commit()
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"Error al procesar el pago con Flow: {str(e)}",
+            )
+
+    result = ReservationResponseSchema.model_validate(reservation).model_dump()
+    if flow_checkout_url:
+        result["flow_checkout_url"] = flow_checkout_url
+    return result
 
 
 def cancel_reservation_service(

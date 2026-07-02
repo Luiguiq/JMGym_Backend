@@ -57,6 +57,7 @@ class Reserva(Base):
     fecha_limite_pago: Mapped[Optional[datetime]] = mapped_column(DateTime)
     fecha_clase: Mapped[date] = mapped_column(Date, nullable=False)
     qr_checkin: Mapped[Optional[str]] = mapped_column(String(255))
+    flow_token: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
     usuario: Mapped["Usuario"] = relationship(back_populates="reservas")
     clase: Mapped["Clase"] = relationship(back_populates="reservas")
