@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.models.user_model import Usuario
 from app.models.seat_model import Espacio
 from app.models.cancelacion_model import Cancelacion
-from app.schemas.reservation_schemas import ReservationCreateSchema, ReservationResponseSchema, ReservationWithFlowSchema
+from app.schemas.reservation_schemas import ReservationCreateSchema, ReservationResponseSchema
 from app.schemas.cancelacion_schemas import CancelacionCreateSchema
 from app.security import get_db, get_current_user, get_current_admin
 from app.repositories.reservation_repository import get_reservation_by_id
@@ -30,7 +30,7 @@ from app.services.reservation_service import (
 router = APIRouter(prefix="/reservations", tags=["Reservations"])
 
 
-@router.post("", response_model=ReservationWithFlowSchema, status_code=201)
+@router.post("", response_model=ReservationResponseSchema, status_code=201)
 def create_reservation(
     data: ReservationCreateSchema,
     db: Session = Depends(get_db),

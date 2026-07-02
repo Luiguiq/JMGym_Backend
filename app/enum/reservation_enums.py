@@ -9,7 +9,6 @@ class MetodoPago(str, Enum):
 class EstadoPagoReserva(str, Enum):
     PENDIENTE = "PENDIENTE"
     PAGADO = "PAGADO"
-    RECHAZADO = "RECHAZADO"
     VENCIDO = "VENCIDO"
     REEMBOLSO_PENDIENTE = "REEMBOLSO_PENDIENTE"
     REEMBOLSADO = "REEMBOLSADO"

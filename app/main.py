@@ -49,26 +49,6 @@ if not _ON_VERCEL:
     except Exception:
         pass
 
-    try:
-        with engine.connect() as conn:
-            conn.execute(text(
-                "ALTER TABLE reservas MODIFY COLUMN estado_pago "
-                "ENUM('PENDIENTE','PAGADO','RECHAZADO','VENCIDO','REEMBOLSO_PENDIENTE','REEMBOLSADO') "
-                "NOT NULL DEFAULT 'PENDIENTE'"
-            ))
-            conn.commit()
-    except Exception:
-        pass
-
-    try:
-        with engine.connect() as conn:
-            conn.execute(text(
-                "ALTER TABLE reservas ADD COLUMN flow_token VARCHAR(255) DEFAULT NULL"
-            ))
-            conn.commit()
-    except Exception:
-        pass
-
 app = FastAPI(
     title="JMGym API",
     version="1.0.0"
