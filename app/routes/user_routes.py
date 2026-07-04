@@ -1,6 +1,6 @@
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import Optional
 from sqlalchemy.orm import Session
 
@@ -12,6 +12,16 @@ from app.services.notification_service import notify_account_blocked
 
 router = APIRouter(prefix="/users", tags=["User Management"])
 
+DNI_ERROR_MESSAGE = "El DNI debe contener exactamente 8 dígitos."
+
+
+def validate_dni_value(value: Optional[str]) -> Optional[str]:
+    if value is None:
+        return value
+    if not value.isdigit() or len(value) != 8:
+        raise ValueError(DNI_ERROR_MESSAGE)
+    return value
+
 
 class UserUpdateSchema(BaseModel):
     nombre_completo: Optional[str] = None
@@ -22,6 +32,11 @@ class UserUpdateSchema(BaseModel):
     password: Optional[str] = None
     old_password: Optional[str] = None
 
+    @field_validator("dni")
+    @classmethod
+    def validate_dni(cls, value: Optional[str]) -> Optional[str]:
+        return validate_dni_value(value)
+
 
 class UserCreateFromAdminSchema(BaseModel):
     nombre_completo: str
@@ -29,6 +44,12 @@ class UserCreateFromAdminSchema(BaseModel):
     correo: str
     telefono: Optional[str] = None
     password: str = "cliente123"
+
+    @field_validator("dni")
+    @classmethod
+    def validate_dni(cls, value: str) -> str:
+        validate_dni_value(value)
+        return value
 
 
 class UserResponseSchema(BaseModel):
