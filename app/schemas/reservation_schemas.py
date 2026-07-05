@@ -15,6 +15,7 @@ HISTORY_EVENT_TITLES = {
     "REEMBOLSO_SOLICITADO": "Reembolso solicitado",
     "REEMBOLSO_APROBADO": "Reembolso aprobado",
     "REEMBOLSO_RECHAZADO": "Reembolso rechazado",
+    "REEMBOLSO_SOLICITUD_CANCELADA": "Solicitud de reembolso cancelada",
     "RESERVA_COMPLETADA": "Reserva completada",
     "RESERVA_FINALIZADA": "Reserva finalizada",
     "ASIENTO_CAMBIADO": "Espacio cambiado",

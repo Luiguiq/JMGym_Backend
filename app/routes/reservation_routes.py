@@ -24,6 +24,7 @@ from app.services.reservation_service import (
     change_seat_service,
     mark_reservation_as_paid_service,
     request_refund_service,
+    cancel_refund_request_service,
     approve_refund_service,
 )
 from app.services.reservation_history_service import registrar_evento_reserva
@@ -210,6 +211,23 @@ def request_refund(
         current_user.id_usuario,
         reservation_id
     )
+
+
+@router.patch(
+    "/{reservation_id}/refund-request/cancel",
+    response_model=ReservationResponseSchema
+)
+def cancel_refund_request(
+    reservation_id: int,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user),
+):
+    return cancel_refund_request_service(
+        db,
+        current_user.id_usuario,
+        reservation_id
+    )
+
 
 @router.patch(
     "/{reservation_id}/refund-approve",

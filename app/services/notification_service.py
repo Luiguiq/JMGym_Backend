@@ -271,6 +271,20 @@ def notify_refund_processed(
     )
 
 
+def notify_refund_request_cancelled(
+    db: Session, user_id: int, reservation: Reserva
+) -> NotificationResponseSchema:
+    return _create_notification(
+        db,
+        user_id=user_id,
+        titulo="Solicitud de reembolso cancelada",
+        mensaje="Cancelaste la solicitud de reembolso. Tu reserva continúa activa.",
+        tipo=TipoNotificacion.REEMBOLSO,
+        id_reserva=reservation.id_reserva,
+        id_clase=reservation.id_clase,
+    )
+
+
 def notify_account_blocked(
     db: Session, user_id: int, estado: str
 ) -> NotificationResponseSchema:
