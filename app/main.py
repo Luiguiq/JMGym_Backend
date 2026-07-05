@@ -5,7 +5,7 @@ from sqlalchemy import text
 import os
 
 from app.core.database import engine, Base
-from app.models import Usuario, Clase, Reserva, Pago, GeneroClase, Instructor, InstructorGenero, Espacio, Administrador, Notificacion, Cancelacion
+from app.models import Usuario, Clase, Reserva, Pago, GeneroClase, Instructor, InstructorGenero, Espacio, Administrador, Notificacion, Cancelacion, ReservaHistorialEstado
 
 from app.routes.auth_routes import router as auth_router
 from app.routes.class_routes import router as class_router

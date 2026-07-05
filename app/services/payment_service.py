@@ -10,6 +10,7 @@ from app.schemas.payment_schemas import PaymentCreateSchema, PaymentResponseSche
 from app.enum.payment_enums import EstadoPago
 from app.enum.reservation_enums import EstadoPagoReserva
 from app.services.notification_service import notify_payment_confirmed
+from app.services.reservation_history_service import registrar_evento_reserva
 
 
 def create_payment_service(
@@ -57,14 +58,30 @@ def confirm_payment_service(
         payment.fecha_pago = datetime.now()
 
         reservation = payment.reserva
+        old_estado_pago = reservation.estado_pago
         was_confirmed = False
+        tipo_evento = None
         if data.estado == EstadoPago.CONFIRMADO:
             reservation.estado_pago = EstadoPagoReserva.PAGADO
             was_confirmed = True
+            tipo_evento = "PAGO_CONFIRMADO"
         elif data.estado == EstadoPago.RECHAZADO:
             reservation.estado_pago = EstadoPagoReserva.PENDIENTE
+            tipo_evento = "PAGO_RECHAZADO"
         elif data.estado == EstadoPago.REEMBOLSADO:
             reservation.estado_pago = EstadoPagoReserva.PENDIENTE
+            tipo_evento = "PAGO_REEMBOLSADO"
+
+        if tipo_evento:
+            registrar_evento_reserva(
+                db,
+                reservation,
+                tipo_evento,
+                estado_pago_anterior=old_estado_pago,
+                estado_pago_nuevo=reservation.estado_pago,
+                actor_tipo="ADMIN",
+                actor_id=data.confirmado_por_admin,
+            )
 
         db.commit()
         db.refresh(payment)

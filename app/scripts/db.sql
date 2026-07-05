@@ -176,6 +176,27 @@ CREATE TABLE reservas (
 );
 
 -- =====================================================
+-- HISTORIAL DE ESTADOS DE RESERVAS
+-- =====================================================
+
+CREATE TABLE reservas_historial_estados (
+    id_historial             INT AUTO_INCREMENT PRIMARY KEY,
+    id_reserva               INT NOT NULL,
+    tipo_evento              VARCHAR(50) NOT NULL,
+    estado_reserva_anterior  VARCHAR(50),
+    estado_reserva_nuevo     VARCHAR(50),
+    estado_pago_anterior     VARCHAR(50),
+    estado_pago_nuevo        VARCHAR(50),
+    descripcion              TEXT,
+    fecha_hora               DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    actor_tipo               VARCHAR(30),
+    actor_id                 INT,
+    INDEX idx_historial_reserva (id_reserva),
+    INDEX idx_historial_fecha (fecha_hora),
+    FOREIGN KEY (id_reserva) REFERENCES reservas(id_reserva) ON DELETE CASCADE
+);
+
+-- =====================================================
 -- PAGOS
 -- =====================================================
 

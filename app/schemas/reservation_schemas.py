@@ -1,7 +1,24 @@
 from datetime import date, datetime, time
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, computed_field
+
+
+HISTORY_EVENT_TITLES = {
+    "RESERVA_CREADA": "Reserva creada",
+    "PAGO_PENDIENTE": "Pago pendiente",
+    "PAGO_CONFIRMADO": "Pago confirmado",
+    "PAGO_VENCIDO": "Pago vencido",
+    "PAGO_RECHAZADO": "Pago rechazado",
+    "PAGO_REEMBOLSADO": "Pago reembolsado",
+    "RESERVA_CANCELADA": "Reserva cancelada",
+    "REEMBOLSO_SOLICITADO": "Reembolso solicitado",
+    "REEMBOLSO_APROBADO": "Reembolso aprobado",
+    "REEMBOLSO_RECHAZADO": "Reembolso rechazado",
+    "RESERVA_COMPLETADA": "Reserva completada",
+    "RESERVA_FINALIZADA": "Reserva finalizada",
+    "ASIENTO_CAMBIADO": "Espacio cambiado",
+}
 
 
 class ReservationCreateSchema(BaseModel):
@@ -37,6 +54,25 @@ class EspacioReservaSchema(BaseModel):
     codigo_espacio: str
 
 
+class ReservationHistoryResponseSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+    id: int = Field(validation_alias="id_historial")
+    tipo_evento: str
+    descripcion: Optional[str] = None
+    estado_reserva_anterior: Optional[str] = None
+    estado_reserva_nuevo: Optional[str] = None
+    estado_pago_anterior: Optional[str] = None
+    estado_pago_nuevo: Optional[str] = None
+    fecha_hora: datetime
+    actor_tipo: Optional[str] = None
+
+    @computed_field
+    @property
+    def titulo(self) -> str:
+        return HISTORY_EVENT_TITLES.get(self.tipo_evento, "Cambio registrado")
+
+
 class ReservationResponseSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -57,3 +93,4 @@ class ReservationResponseSchema(BaseModel):
     clase: Optional[ClaseReservaSchema] = None
     espacio: Optional[EspacioReservaSchema] = None
     usuario: Optional[UsuarioReservaSchema] = None
+    historial_estados: list[ReservationHistoryResponseSchema] = Field(default_factory=list)

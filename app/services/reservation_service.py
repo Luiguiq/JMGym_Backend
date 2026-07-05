@@ -27,6 +27,7 @@ from app.services.notification_service import (
     notify_seat_changed,
 )
 from app.services.notification_service import notify_refund_processed
+from app.services.reservation_history_service import registrar_evento_reserva
 
 
 def create_reservation_service(
@@ -138,6 +139,24 @@ def create_reservation_service(
             estado_reserva=EstadoReserva.ACTIVA,
         )
         db.add(reservation)
+        db.flush()
+        registrar_evento_reserva(
+            db,
+            reservation,
+            "RESERVA_CREADA",
+            estado_reserva_nuevo=reservation.estado_reserva,
+            estado_pago_nuevo=reservation.estado_pago,
+            actor_tipo="CLIENTE",
+            actor_id=user_id,
+        )
+        registrar_evento_reserva(
+            db,
+            reservation,
+            "PAGO_PENDIENTE" if estado_pago == EstadoPagoReserva.PENDIENTE else "PAGO_CONFIRMADO",
+            estado_pago_nuevo=reservation.estado_pago,
+            actor_tipo="CLIENTE",
+            actor_id=user_id,
+        )
         db.commit()
         db.refresh(reservation)
     except Exception:
@@ -188,6 +207,7 @@ def cancel_reservation_service(
     detalle = cancel_data.detalle if cancel_data else None
 
     try:
+        old_estado_reserva = reservation.estado_reserva
         old_seat = db.query(Espacio).filter(Espacio.id_espacio == reservation.id_espacio).first()
         if old_seat:
             old_seat.estado = "DISPONIBLE"
@@ -205,6 +225,16 @@ def cancel_reservation_service(
             cancelado_por=CanceladoPor.USUARIO,
         )
         db.add(cancelacion)
+        registrar_evento_reserva(
+            db,
+            reservation,
+            "RESERVA_CANCELADA",
+            estado_reserva_anterior=old_estado_reserva,
+            estado_reserva_nuevo=reservation.estado_reserva,
+            descripcion="La reserva fue cancelada por el cliente.",
+            actor_tipo="CLIENTE",
+            actor_id=user_id,
+        )
         db.commit()
         db.refresh(reservation)
     except Exception:
@@ -295,6 +325,8 @@ def change_seat_service(
         raise HTTPException(status_code=400, detail="El nuevo espacio no está disponible")
 
     try:
+        old_seat_code = old_seat.codigo_espacio if old_seat else None
+        new_seat_code = new_seat.codigo_espacio
         if old_seat:
             old_seat.estado = "DISPONIBLE"
         new_seat.estado = "RESERVADO"
@@ -309,6 +341,18 @@ def change_seat_service(
                 "id_espacio_anterior": old_seat.id_espacio if old_seat else None,
                 "id_espacio_nuevo": new_seat.id_espacio,
             },
+        )
+        registrar_evento_reserva(
+            db,
+            reservation,
+            "ASIENTO_CAMBIADO",
+            descripcion=(
+                f"El espacio cambio de {old_seat_code} a {new_seat_code}."
+                if old_seat_code
+                else f"El espacio cambio a {new_seat_code}."
+            ),
+            actor_tipo="CLIENTE",
+            actor_id=user_id,
         )
         db.commit()
         db.refresh(reservation)
@@ -358,6 +402,7 @@ def mark_reservation_as_paid_service(
         )
 
     try:
+        old_estado_pago = reservation.estado_pago
         reservation.estado_pago = EstadoPagoReserva.PAGADO
         payment = Pago(
             id_reserva=reservation.id_reserva,
@@ -368,6 +413,14 @@ def mark_reservation_as_paid_service(
             codigo_operacion=f"EFECTIVO-{reservation.codigo_reserva}",
         )
         db.add(payment)
+        registrar_evento_reserva(
+            db,
+            reservation,
+            "PAGO_CONFIRMADO",
+            estado_pago_anterior=old_estado_pago,
+            estado_pago_nuevo=reservation.estado_pago,
+            actor_tipo="ADMIN",
+        )
         db.commit()
         db.refresh(reservation)
     except Exception:
@@ -413,12 +466,28 @@ def request_refund_service(
             detail="La reserva no es elegible"
         )
 
-    reservation.estado_pago = (
-        EstadoPagoReserva.REEMBOLSO_PENDIENTE
-    )
-
-    db.commit()
-    db.refresh(reservation)
+    try:
+        old_estado_pago = reservation.estado_pago
+        reservation.estado_pago = (
+            EstadoPagoReserva.REEMBOLSO_PENDIENTE
+        )
+        registrar_evento_reserva(
+            db,
+            reservation,
+            "REEMBOLSO_SOLICITADO",
+            estado_pago_anterior=old_estado_pago,
+            estado_pago_nuevo=reservation.estado_pago,
+            actor_tipo="CLIENTE",
+            actor_id=user_id,
+        )
+        db.commit()
+        db.refresh(reservation)
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail="Error al solicitar el reembolso"
+        )
 
     return ReservationResponseSchema.model_validate(
         reservation
@@ -459,6 +528,8 @@ def approve_refund_service(
             )
 
     try:
+        old_estado_pago = reservation.estado_pago
+        old_estado_reserva = reservation.estado_reserva
         old_seat = db.query(Espacio).filter(
             Espacio.id_espacio == reservation.id_espacio
         ).first()
@@ -479,6 +550,25 @@ def approve_refund_service(
             id_admin=admin_id,
         )
         db.add(cancelacion)
+        registrar_evento_reserva(
+            db,
+            reservation,
+            "REEMBOLSO_APROBADO",
+            estado_pago_anterior=old_estado_pago,
+            estado_pago_nuevo=reservation.estado_pago,
+            actor_tipo="ADMIN",
+            actor_id=admin_id,
+        )
+        registrar_evento_reserva(
+            db,
+            reservation,
+            "RESERVA_CANCELADA",
+            estado_reserva_anterior=old_estado_reserva,
+            estado_reserva_nuevo=reservation.estado_reserva,
+            descripcion="La reserva fue cancelada como consecuencia del reembolso aprobado.",
+            actor_tipo="ADMIN",
+            actor_id=admin_id,
+        )
 
         db.commit()
         db.refresh(reservation)

@@ -8,6 +8,6 @@ from app.models.seat_model import Espacio
 from app.models.admin_model import Administrador
 from app.models.notification_model import Notificacion
 from app.models.cancelacion_model import Cancelacion
-
+from app.models.reservation_history_model import ReservaHistorialEstado
 
 
