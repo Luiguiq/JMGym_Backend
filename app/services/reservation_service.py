@@ -26,7 +26,18 @@ from app.services.notification_service import (
     notify_reservation_cancelled,
     notify_seat_changed,
 )
-from app.services.notification_service import notify_refund_processed
+from app.services.notification_service import (
+    notify_refund_processed,
+    notify_refund_request_cancelled,
+)
+from app.services.reservation_history_service import registrar_evento_reserva
+
+
+def _class_has_started(reservation: Reserva) -> bool:
+    cls = reservation.clase
+    if not cls or not cls.fecha or not cls.hora_inicio:
+        return False
+    return datetime.now() >= datetime.combine(cls.fecha, cls.hora_inicio)
 
 
 def create_reservation_service(
@@ -138,6 +149,24 @@ def create_reservation_service(
             estado_reserva=EstadoReserva.ACTIVA,
         )
         db.add(reservation)
+        db.flush()
+        registrar_evento_reserva(
+            db,
+            reservation,
+            "RESERVA_CREADA",
+            estado_reserva_nuevo=reservation.estado_reserva,
+            estado_pago_nuevo=reservation.estado_pago,
+            actor_tipo="CLIENTE",
+            actor_id=user_id,
+        )
+        registrar_evento_reserva(
+            db,
+            reservation,
+            "PAGO_PENDIENTE" if estado_pago == EstadoPagoReserva.PENDIENTE else "PAGO_CONFIRMADO",
+            estado_pago_nuevo=reservation.estado_pago,
+            actor_tipo="CLIENTE",
+            actor_id=user_id,
+        )
         db.commit()
         db.refresh(reservation)
     except Exception:
@@ -180,6 +209,29 @@ def cancel_reservation_service(
             detail="Solo puedes cancelar reservas activas",
         )
 
+    if _class_has_started(reservation):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La clase ya inició o ya terminó",
+        )
+
+    if reservation.estado_pago == EstadoPagoReserva.REEMBOLSO_PENDIENTE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Esta reserva tiene una solicitud de reembolso pendiente.",
+        )
+
+    if reservation.estado_pago != EstadoPagoReserva.PENDIENTE:
+        detail = (
+            "Esta reserva ya fue pagada. Debes solicitar un reembolso."
+            if reservation.metodo_pago == MetodoPago.YAPE
+            else "Solo puedes cancelar reservas sin pago confirmado."
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=detail,
+        )
+
     motivo = (
         cancel_data.motivo
         if cancel_data
@@ -188,6 +240,7 @@ def cancel_reservation_service(
     detalle = cancel_data.detalle if cancel_data else None
 
     try:
+        old_estado_reserva = reservation.estado_reserva
         old_seat = db.query(Espacio).filter(Espacio.id_espacio == reservation.id_espacio).first()
         if old_seat:
             old_seat.estado = "DISPONIBLE"
@@ -205,6 +258,16 @@ def cancel_reservation_service(
             cancelado_por=CanceladoPor.USUARIO,
         )
         db.add(cancelacion)
+        registrar_evento_reserva(
+            db,
+            reservation,
+            "RESERVA_CANCELADA",
+            estado_reserva_anterior=old_estado_reserva,
+            estado_reserva_nuevo=reservation.estado_reserva,
+            descripcion="La reserva fue cancelada por el cliente.",
+            actor_tipo="CLIENTE",
+            actor_id=user_id,
+        )
         db.commit()
         db.refresh(reservation)
     except Exception:
@@ -295,6 +358,8 @@ def change_seat_service(
         raise HTTPException(status_code=400, detail="El nuevo espacio no está disponible")
 
     try:
+        old_seat_code = old_seat.codigo_espacio if old_seat else None
+        new_seat_code = new_seat.codigo_espacio
         if old_seat:
             old_seat.estado = "DISPONIBLE"
         new_seat.estado = "RESERVADO"
@@ -309,6 +374,18 @@ def change_seat_service(
                 "id_espacio_anterior": old_seat.id_espacio if old_seat else None,
                 "id_espacio_nuevo": new_seat.id_espacio,
             },
+        )
+        registrar_evento_reserva(
+            db,
+            reservation,
+            "ASIENTO_CAMBIADO",
+            descripcion=(
+                f"El espacio cambio de {old_seat_code} a {new_seat_code}."
+                if old_seat_code
+                else f"El espacio cambio a {new_seat_code}."
+            ),
+            actor_tipo="CLIENTE",
+            actor_id=user_id,
         )
         db.commit()
         db.refresh(reservation)
@@ -358,6 +435,7 @@ def mark_reservation_as_paid_service(
         )
 
     try:
+        old_estado_pago = reservation.estado_pago
         reservation.estado_pago = EstadoPagoReserva.PAGADO
         payment = Pago(
             id_reserva=reservation.id_reserva,
@@ -368,6 +446,14 @@ def mark_reservation_as_paid_service(
             codigo_operacion=f"EFECTIVO-{reservation.codigo_reserva}",
         )
         db.add(payment)
+        registrar_evento_reserva(
+            db,
+            reservation,
+            "PAGO_CONFIRMADO",
+            estado_pago_anterior=old_estado_pago,
+            estado_pago_nuevo=reservation.estado_pago,
+            actor_tipo="ADMIN",
+        )
         db.commit()
         db.refresh(reservation)
     except Exception:
@@ -407,22 +493,126 @@ def request_refund_service(
             detail="Solo reservas pagadas pueden solicitar reembolso"
         )
 
+    if reservation.metodo_pago != MetodoPago.YAPE:
+        raise HTTPException(
+            status_code=400,
+            detail="Solo reservas pagadas por Yape pueden solicitar reembolso"
+        )
+
     if reservation.estado_reserva != EstadoReserva.ACTIVA:
         raise HTTPException(
             status_code=400,
             detail="La reserva no es elegible"
         )
 
-    reservation.estado_pago = (
-        EstadoPagoReserva.REEMBOLSO_PENDIENTE
-    )
+    if _class_has_started(reservation):
+        raise HTTPException(
+            status_code=400,
+            detail="La clase ya inició o ya terminó"
+        )
 
-    db.commit()
-    db.refresh(reservation)
+    try:
+        old_estado_pago = reservation.estado_pago
+        reservation.estado_pago = (
+            EstadoPagoReserva.REEMBOLSO_PENDIENTE
+        )
+        registrar_evento_reserva(
+            db,
+            reservation,
+            "REEMBOLSO_SOLICITADO",
+            estado_pago_anterior=old_estado_pago,
+            estado_pago_nuevo=reservation.estado_pago,
+            actor_tipo="CLIENTE",
+            actor_id=user_id,
+        )
+        db.commit()
+        db.refresh(reservation)
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail="Error al solicitar el reembolso"
+        )
 
     return ReservationResponseSchema.model_validate(
         reservation
     )
+
+
+def cancel_refund_request_service(
+    db: Session,
+    user_id: int,
+    reservation_id: int,
+) -> ReservationResponseSchema:
+    reservation = get_reservation_by_id(db, reservation_id)
+
+    if not reservation:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Reserva no encontrada",
+        )
+
+    if reservation.id_usuario != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No autorizado",
+        )
+
+    if reservation.metodo_pago != MetodoPago.YAPE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Solo reservas pagadas por Yape pueden cancelar una solicitud de reembolso",
+        )
+
+    if reservation.estado_pago != EstadoPagoReserva.REEMBOLSO_PENDIENTE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Esta solicitud de reembolso ya no está pendiente.",
+        )
+
+    if reservation.estado_reserva != EstadoReserva.ACTIVA:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La reserva no es elegible",
+        )
+
+    if _class_has_started(reservation):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La clase ya inició o ya terminó",
+        )
+
+    try:
+        old_estado_pago = reservation.estado_pago
+        old_estado_reserva = reservation.estado_reserva
+        reservation.estado_pago = EstadoPagoReserva.PAGADO
+        registrar_evento_reserva(
+            db,
+            reservation,
+            "REEMBOLSO_SOLICITUD_CANCELADA",
+            estado_reserva_anterior=old_estado_reserva,
+            estado_reserva_nuevo=reservation.estado_reserva,
+            estado_pago_anterior=old_estado_pago,
+            estado_pago_nuevo=reservation.estado_pago,
+            descripcion="El cliente decidió mantener la reserva y canceló la solicitud de reembolso.",
+            actor_tipo="CLIENTE",
+            actor_id=user_id,
+        )
+        db.commit()
+        db.refresh(reservation)
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error al cancelar la solicitud de reembolso",
+        )
+
+    try:
+        notify_refund_request_cancelled(db, user_id, reservation)
+    except Exception:
+        pass
+
+    return ReservationResponseSchema.model_validate(reservation)
 
 def approve_refund_service(
     db: Session,
@@ -459,6 +649,8 @@ def approve_refund_service(
             )
 
     try:
+        old_estado_pago = reservation.estado_pago
+        old_estado_reserva = reservation.estado_reserva
         old_seat = db.query(Espacio).filter(
             Espacio.id_espacio == reservation.id_espacio
         ).first()
@@ -479,6 +671,25 @@ def approve_refund_service(
             id_admin=admin_id,
         )
         db.add(cancelacion)
+        registrar_evento_reserva(
+            db,
+            reservation,
+            "REEMBOLSO_APROBADO",
+            estado_pago_anterior=old_estado_pago,
+            estado_pago_nuevo=reservation.estado_pago,
+            actor_tipo="ADMIN",
+            actor_id=admin_id,
+        )
+        registrar_evento_reserva(
+            db,
+            reservation,
+            "RESERVA_CANCELADA",
+            estado_reserva_anterior=old_estado_reserva,
+            estado_reserva_nuevo=reservation.estado_reserva,
+            descripcion="La reserva fue cancelada como consecuencia del reembolso aprobado.",
+            actor_tipo="ADMIN",
+            actor_id=admin_id,
+        )
 
         db.commit()
         db.refresh(reservation)

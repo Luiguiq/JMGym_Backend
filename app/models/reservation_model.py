@@ -63,3 +63,8 @@ class Reserva(Base):
     espacio: Mapped["Espacio"] = relationship(back_populates="reserva")
     pagos: Mapped[list["Pago"]] = relationship(back_populates="reserva")
     cancelacion: Mapped[Optional["Cancelacion"]] = relationship(back_populates="reserva")
+    historial_estados: Mapped[list["ReservaHistorialEstado"]] = relationship(
+        back_populates="reserva",
+        cascade="all, delete-orphan",
+        order_by="ReservaHistorialEstado.fecha_hora",
+    )

@@ -5,7 +5,7 @@ from sqlalchemy import text
 import os
 
 from app.core.database import engine, Base
-from app.models import Usuario, Clase, Reserva, Pago, GeneroClase, Instructor, InstructorGenero, Espacio, Administrador, Notificacion, Cancelacion, ReservaHistorialEstado
+from app.models import Usuario, Clase, Reserva, Pago, GeneroClase, Instructor, InstructorGenero, Espacio, Administrador, Notificacion, Cancelacion
 
 from app.routes.auth_routes import router as auth_router
 from app.routes.class_routes import router as class_router
@@ -54,14 +54,11 @@ app = FastAPI(
     version="1.0.0"
 )
 
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "")
-default_origins = [
-    "http://localhost:5173",
-    "https://jm-gyms.vercel.app",
-]
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS")
 if ALLOWED_ORIGINS:
-    default_origins.extend(ALLOWED_ORIGINS.split(","))
-cors_kwargs = {"allow_origins": list(set(default_origins))}
+    cors_kwargs = {"allow_origins": ALLOWED_ORIGINS.split(",")}
+else:
+    cors_kwargs = {"allow_origin_regex": r"https?://(localhost|127\.0\.0\.1|.*\.vercel\.app)(:\d+)?"}
 
 app.add_middleware(
     CORSMiddleware,
