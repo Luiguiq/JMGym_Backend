@@ -40,3 +40,12 @@ class UserOut(BaseModel):
 class AuthResponse(BaseModel):
     user: UserOut
     token: str
+
+
+class ForgotPasswordRequest(BaseModel):
+    correo: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    password: str
