@@ -12,6 +12,7 @@ from app.models.class_model import Clase
 from app.models.user_model import Usuario
 from app.models.cancelacion_model import Cancelacion
 from app.models.seat_model import Espacio
+from app.services.reservation_history_service import registrar_evento_reserva
 from app.repositories import notification_repository as repo
 from app.schemas.notification_schemas import (
     NotificationResponseSchema,
@@ -270,6 +271,20 @@ def notify_refund_processed(
     )
 
 
+def notify_refund_request_cancelled(
+    db: Session, user_id: int, reservation: Reserva
+) -> NotificationResponseSchema:
+    return _create_notification(
+        db,
+        user_id=user_id,
+        titulo="Solicitud de reembolso cancelada",
+        mensaje="Cancelaste la solicitud de reembolso. Tu reserva continúa activa.",
+        tipo=TipoNotificacion.REEMBOLSO,
+        id_reserva=reservation.id_reserva,
+        id_clase=reservation.id_clase,
+    )
+
+
 def notify_account_blocked(
     db: Session, user_id: int, estado: str
 ) -> NotificationResponseSchema:
@@ -359,6 +374,7 @@ def respond_to_notification_service(
                 .first()
             )
             if reservation and reservation.estado_reserva == "ACTIVA":
+                old_estado_reserva = reservation.estado_reserva
                 old_seat = db.query(Espacio).filter(Espacio.id_espacio == reservation.id_espacio).first()
                 if old_seat:
                     old_seat.estado = "DISPONIBLE"
@@ -375,6 +391,16 @@ def respond_to_notification_service(
                     cancelado_por=CanceladoPor.USUARIO,
                 )
                 db.add(cancelacion)
+                registrar_evento_reserva(
+                    db,
+                    reservation,
+                    "RESERVA_CANCELADA",
+                    estado_reserva_anterior=old_estado_reserva,
+                    estado_reserva_nuevo=reservation.estado_reserva,
+                    descripcion="La reserva fue cancelada por respuesta a una notificacion.",
+                    actor_tipo="CLIENTE",
+                    actor_id=user_id,
+                )
                 db.commit()
 
     notif = repo.respond_to_notification(db, notification_id, respuesta.value)

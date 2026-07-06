@@ -24,8 +24,10 @@ from app.services.reservation_service import (
     change_seat_service,
     mark_reservation_as_paid_service,
     request_refund_service,
+    cancel_refund_request_service,
     approve_refund_service,
 )
+from app.services.reservation_history_service import registrar_evento_reserva
 
 router = APIRouter(prefix="/reservations", tags=["Reservations"])
 
@@ -135,6 +137,7 @@ def delete_reservation(
     detalle = cancel_data.detalle if cancel_data else None
 
     try:
+        old_estado_reserva = reservation.estado_reserva
         old_seat = db.query(Espacio).filter(Espacio.id_espacio == reservation.id_espacio).first()
         if old_seat:
             old_seat.estado = "DISPONIBLE"
@@ -152,6 +155,16 @@ def delete_reservation(
         cls = get_class_by_id(db, reservation.id_clase)
         if cls and cls.cupos_disponibles is not None:
             cls.cupos_disponibles += 1
+
+        registrar_evento_reserva(
+            db,
+            reservation,
+            "RESERVA_CANCELADA",
+            estado_reserva_anterior=old_estado_reserva,
+            estado_reserva_nuevo=reservation.estado_reserva,
+            descripcion="La reserva fue cancelada por un administrador.",
+            actor_tipo="ADMIN",
+        )
 
         user_id = reservation.id_usuario
         clase_nombre = reservation.clase.nombre_clase if reservation.clase else "Clase"
@@ -198,6 +211,23 @@ def request_refund(
         current_user.id_usuario,
         reservation_id
     )
+
+
+@router.patch(
+    "/{reservation_id}/refund-request/cancel",
+    response_model=ReservationResponseSchema
+)
+def cancel_refund_request(
+    reservation_id: int,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user),
+):
+    return cancel_refund_request_service(
+        db,
+        current_user.id_usuario,
+        reservation_id
+    )
+
 
 @router.patch(
     "/{reservation_id}/refund-approve",
