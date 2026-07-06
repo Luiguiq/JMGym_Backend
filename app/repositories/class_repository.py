@@ -7,6 +7,7 @@ from app.models.class_model import Clase
 from app.models.payment_model import Pago
 from app.models.reservation_model import Reserva
 from app.models.seat_model import Espacio
+from app.models.yape_model import YapePago
 from app.enum.class_enums import EstadoClase
 
 
@@ -85,6 +86,10 @@ def delete_class(db: Session, class_id: int) -> bool:
         .filter(Reserva.id_clase == class_id)
         .all()
     ]
+    db.query(YapePago).filter(YapePago.id_clase == class_id).delete(
+        synchronize_session=False
+    )
+
     if reservation_ids:
         db.query(Pago).filter(Pago.id_reserva.in_(reservation_ids)).delete(
             synchronize_session=False

@@ -237,7 +237,12 @@ CREATE TABLE notificaciones (
     id_usuario          INT NOT NULL,
     titulo              VARCHAR(150),
     mensaje             TEXT,
-    tipo                ENUM('RECORDATORIO','PAGO','CAMBIO_HORARIO','NUEVA_CLASE','CANCELACION','REEMBOLSO','BLOQUEO_CUENTA'),
+    tipo                ENUM(
+        'RECORDATORIO','PAGO','PAGO_CONFIRMADO','CAMBIO_HORARIO',
+        'CAMBIO_INSTRUCTOR','NUEVA_CLASE','CANCELACION','REEMBOLSO',
+        'BLOQUEO_CUENTA','RESERVA_CONFIRMADA','RESERVA_CANCELADA',
+        'CAMBIO_ESPACIO','NOTIFICACION_GENERAL'
+    ),
     requiere_respuesta  BOOLEAN DEFAULT FALSE,
     respuesta_usuario   ENUM('ACEPTADO','CANCELADO') DEFAULT NULL,
     fecha_respuesta     DATETIME DEFAULT NULL,
@@ -280,6 +285,28 @@ CREATE TABLE reembolsos (
     procesado_por_admin INT DEFAULT NULL,
     FOREIGN KEY (id_pago)               REFERENCES pagos(id_pago),
     FOREIGN KEY (procesado_por_admin)   REFERENCES administradores(id_admin)
+);
+
+-- =====================================================
+-- PAGOS YAPE
+-- =====================================================
+
+CREATE TABLE yape_pagos (
+    id_yape_pago        INT AUTO_INCREMENT PRIMARY KEY,
+    id_usuario          INT NOT NULL,
+    id_reserva          INT,
+    id_clase            INT NOT NULL,
+    id_espacio          INT NOT NULL,
+    celular             VARCHAR(15) NOT NULL,
+    codigo_confirmacion VARCHAR(6),
+    estado              VARCHAR(20) DEFAULT 'PENDIENTE',
+    monto               DECIMAL(10,2) NOT NULL,
+    fecha_creacion      DATETIME,
+    fecha_confirmacion  DATETIME,
+    FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario),
+    FOREIGN KEY (id_reserva) REFERENCES reservas(id_reserva),
+    FOREIGN KEY (id_clase)   REFERENCES clases(id_clase),
+    FOREIGN KEY (id_espacio) REFERENCES espacios(id_espacio)
 );
 
 -- =====================================================
@@ -422,5 +449,13 @@ MODIFY COLUMN estado_pago ENUM(
 'PAGADO',
 'REEMBOLSO_PENDIENTE',
 'REEMBOLSADO'
+) NOT NULL;
+
+ALTER TABLE notificaciones
+MODIFY COLUMN tipo ENUM(
+    'RECORDATORIO','PAGO','PAGO_CONFIRMADO','CAMBIO_HORARIO',
+    'CAMBIO_INSTRUCTOR','NUEVA_CLASE','CANCELACION','REEMBOLSO',
+    'BLOQUEO_CUENTA','RESERVA_CONFIRMADA','RESERVA_CANCELADA',
+    'CAMBIO_ESPACIO','NOTIFICACION_GENERAL'
 ) NOT NULL;
 

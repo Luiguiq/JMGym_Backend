@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.schemas.class_schemas import ClassCreateSchema, ClassUpdateSchema, ClassResponseSchema, SeatResponseSchema
-from app.security import get_db
+from app.security import get_db, get_current_admin
+from app.models.admin_model import Administrador
 from app.services.class_service import (
     get_classes_service,
     get_today_classes_service,
@@ -48,7 +49,7 @@ def update_class(class_id: int, data: ClassUpdateSchema, db: Session = Depends(g
 
 
 @router.delete("/{class_id}")
-def delete_class(class_id: int, db: Session = Depends(get_db)):
+def delete_class(class_id: int, db: Session = Depends(get_db), _admin: Administrador = Depends(get_current_admin)):
     return delete_class_service(db, class_id)
 
 

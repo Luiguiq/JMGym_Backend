@@ -9,7 +9,7 @@ from app.models.admin_model import Administrador
 from app.models.notification_model import Notificacion
 from app.models.cancelacion_model import Cancelacion
 from app.models.password_reset_model import RestablecerContrasena
-
 from app.models.reservation_history_model import ReservaHistorialEstado
+from app.models.yape_model import YapePago
 
 

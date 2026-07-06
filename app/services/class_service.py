@@ -104,13 +104,20 @@ def update_class_service(
 
 
 def delete_class_service(db: Session, class_id: int) -> dict:
+    cls = get_class_by_id(db, class_id)
+    if cls:
+        try:
+            notify_class_cancelled(db, cls, "La clase ha sido eliminada. Puedes solicitar un reembolso.")
+        except Exception:
+            pass
+
     deleted = delete_class(db, class_id)
     if not deleted:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Clase no encontrada",
         )
-    return {"message": "Clase eliminada correctamente"}
+    return {"message": "Clase eliminada correctamente", "notified": True}
 
 
 def get_classes_by_instructor_service(db: Session, instructor_id: int) -> list[ClassResponseSchema]:

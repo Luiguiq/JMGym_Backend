@@ -61,6 +61,11 @@ def get_current_user(
     )
     if user is None:
         raise credentials_exception
+    if user.estado != "ACTIVO":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Tu cuenta ha sido bloqueada. Contacta al administrador.",
+        )
     return user
 
 

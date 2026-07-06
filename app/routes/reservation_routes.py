@@ -230,6 +230,22 @@ def cancel_refund_request(
 
 
 @router.patch(
+    "/{reservation_id}/refund-request/cancel",
+    response_model=ReservationResponseSchema
+)
+def cancel_refund_request(
+    reservation_id: int,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user),
+):
+    return cancel_refund_request_service(
+        db,
+        current_user.id_usuario,
+        reservation_id
+    )
+
+
+@router.patch(
     "/{reservation_id}/refund-approve",
     response_model=ReservationResponseSchema
 )
