@@ -17,12 +17,17 @@ def get_user_reservations(db: Session, user_id: int) -> list[Reserva]:
     return (
         db.query(Reserva)
         .filter(Reserva.id_usuario == user_id)
+        .order_by(Reserva.fecha_reserva.desc())
         .all()
     )
 
 
 def get_all_reservations(db: Session) -> list[Reserva]:
-    return db.query(Reserva).all()
+    return (
+        db.query(Reserva)
+        .order_by(Reserva.fecha_reserva.desc())
+        .all()
+    )
 
 
 def get_reservation_by_id(db: Session, reservation_id: int) -> Optional[Reserva]:

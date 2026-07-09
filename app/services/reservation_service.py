@@ -31,7 +31,7 @@ from app.services.notification_service import (
     notify_refund_request_cancelled,
 )
 from app.services.reservation_history_service import registrar_evento_reserva
-from app.services.fidelizacion_service import obtener_info_fidelizacion
+from app.services.fidelizacion_service import obtener_info_fidelizacion, obtener_clases_gratis_restantes, obtener_nivel, NIVEL_ORO, calcular_horas_mes
 
 
 def _class_has_started(reservation: Reserva) -> bool:
@@ -142,6 +142,25 @@ def create_reservation_service(
         precio_base = float(cls.precio) if cls.precio else 0.0
         monto_final = round(precio_base * (100 - descuento_pct) / 100, 2)
 
+        es_gratis = False
+        if data.aplica_clase_gratis:
+            horas_data = calcular_horas_mes(db, user_id)
+            nivel = obtener_nivel(horas_data["total"])
+            if nivel != NIVEL_ORO:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Beneficio disponible solo para usuarios nivel Oro",
+                )
+            restantes = obtener_clases_gratis_restantes(db, user_id)
+            if restantes <= 0:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Ya usaste tus 2 clases gratis este mes",
+                )
+            monto_final = 0.0
+            estado_pago = EstadoPagoReserva.PAGADO
+            es_gratis = True
+
         reservation = Reserva(
             codigo_reserva=codigo,
             qr_checkin=qr_checkin,
@@ -153,6 +172,7 @@ def create_reservation_service(
             fecha_clase=cls.fecha,
             estado_pago=estado_pago,
             estado_reserva=EstadoReserva.ACTIVA,
+            es_clase_gratis=es_gratis,
         )
         db.add(reservation)
         db.flush()

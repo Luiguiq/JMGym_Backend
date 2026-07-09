@@ -26,6 +26,7 @@ class ReservationCreateSchema(BaseModel):
     class_id: int = Field(validation_alias="classId")
     seat_id: int = Field(validation_alias="seatId")
     payment_method: str = Field(validation_alias="paymentMethod")
+    aplica_clase_gratis: bool = Field(default=False, validation_alias="aplicaClaseGratis")
     
 
 class ClaseReservaSchema(BaseModel):
@@ -90,6 +91,7 @@ class ReservationResponseSchema(BaseModel):
     fecha_limite_pago: Optional[datetime] = None
     fecha_clase: date
     qr_checkin: Optional[str] = None
+    es_clase_gratis: bool = False
 
     clase: Optional[ClaseReservaSchema] = None
     espacio: Optional[EspacioReservaSchema] = None
