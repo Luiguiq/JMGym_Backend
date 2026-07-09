@@ -11,9 +11,12 @@ router = APIRouter(prefix="/fidelizacion", tags=["Fidelización"])
 
 class FidelizacionResponse(BaseModel):
     horas_mes: float
+    horas_base: float
+    horas_bono: float
     nivel: str
     descuento_porcentaje: int
     acompanante_gratis: bool
+    clases_gratis_restantes: int = 0
     siguiente_nivel: str | None = None
     horas_restantes: float = 0
 

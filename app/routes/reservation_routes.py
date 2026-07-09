@@ -184,6 +184,8 @@ def delete_reservation(
                 "id_reserva": id_reserva_val,
                 "id_clase": id_clase_val,
             })
+            from app.services.notification_service import emit_notification_event
+            emit_notification_event(notif, user_id)
             print(f"[DELETE_RESERVATION] Notification created: {notif.id_notificacion}")
         except Exception as exc:
             import logging

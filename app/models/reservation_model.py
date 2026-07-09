@@ -4,6 +4,7 @@ from typing import Optional
 from sqlalchemy import (
     String,
     Integer,
+    Boolean,
     Date,
     DateTime,
     DECIMAL,
@@ -57,6 +58,7 @@ class Reserva(Base):
     fecha_limite_pago: Mapped[Optional[datetime]] = mapped_column(DateTime)
     fecha_clase: Mapped[date] = mapped_column(Date, nullable=False)
     qr_checkin: Mapped[Optional[str]] = mapped_column(String(255))
+    es_clase_gratis: Mapped[bool] = mapped_column(Boolean, default=False)
 
     usuario: Mapped["Usuario"] = relationship(back_populates="reservas")
     clase: Mapped["Clase"] = relationship(back_populates="reservas")

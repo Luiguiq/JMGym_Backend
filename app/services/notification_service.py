@@ -20,6 +20,22 @@ from app.schemas.notification_schemas import (
 )
 
 
+def emit_notification_event(notif, user_id: int):
+    from app.services.socket_manager import emit_to_user, emit_to_admins
+    tipo_val = notif.tipo.value if hasattr(notif.tipo, 'value') else notif.tipo
+    notif_data = {
+        "id": notif.id_notificacion,
+        "userId": notif.id_usuario,
+        "title": notif.titulo,
+        "message": notif.mensaje,
+        "type": tipo_val,
+        "read": bool(notif.leido),
+        "sentAt": str(notif.fecha_envio) if notif.fecha_envio else None,
+    }
+    emit_to_user(user_id, 'notification:new', notif_data)
+    emit_to_admins('notification:new', notif_data)
+
+
 def _create_notification(
     db: Session,
     user_id: int,
@@ -42,6 +58,7 @@ def _create_notification(
             "id_clase": id_clase,
         },
     )
+    emit_notification_event(notif, user_id)
     return NotificationResponseSchema.model_validate(notif)
 
 

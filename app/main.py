@@ -52,7 +52,7 @@ if not _ON_VERCEL:
     except Exception:
         pass
 
-app = FastAPI(
+fastapi_app = FastAPI(
     title="JMGym API",
     version="1.0.0"
 )
@@ -66,7 +66,7 @@ if ALLOWED_ORIGINS:
     default_origins.extend(ALLOWED_ORIGINS.split(","))
 cors_kwargs = {"allow_origins": list(set(default_origins))}
 
-app.add_middleware(
+fastapi_app.add_middleware(
     CORSMiddleware,
     **cors_kwargs,
     allow_credentials=True,
@@ -80,29 +80,34 @@ else:
     uploads_dir = os.path.join(os.path.dirname(__file__), "uploads")
 os.makedirs(uploads_dir, exist_ok=True)
 try:
-    app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
+    fastapi_app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
 except Exception:
     pass
 
-app.include_router(auth_router, prefix="/api")
-app.include_router(class_router, prefix="/api")
-app.include_router(reservation_router, prefix="/api")
-app.include_router(payment_router, prefix="/api")
-app.include_router(admin_router, prefix="/api")
-app.include_router(admin_auth_router, prefix="/api")
-app.include_router(instructor_router, prefix="/api")
-app.include_router(genre_router, prefix="/api")
-app.include_router(admin_user_router, prefix="/api")
-app.include_router(user_router, prefix="/api")
-app.include_router(upload_router, prefix="/api")
-app.include_router(notification_router, prefix="/api")
-app.include_router(cancelacion_router, prefix="/api")
-app.include_router(reset_password_router, prefix="/api")
-app.include_router(yape_router, prefix="/api")
-app.include_router(fidelizacion_router, prefix="/api")
+fastapi_app.include_router(auth_router, prefix="/api")
+fastapi_app.include_router(class_router, prefix="/api")
+fastapi_app.include_router(reservation_router, prefix="/api")
+fastapi_app.include_router(payment_router, prefix="/api")
+fastapi_app.include_router(admin_router, prefix="/api")
+fastapi_app.include_router(admin_auth_router, prefix="/api")
+fastapi_app.include_router(instructor_router, prefix="/api")
+fastapi_app.include_router(genre_router, prefix="/api")
+fastapi_app.include_router(admin_user_router, prefix="/api")
+fastapi_app.include_router(user_router, prefix="/api")
+fastapi_app.include_router(upload_router, prefix="/api")
+fastapi_app.include_router(notification_router, prefix="/api")
+fastapi_app.include_router(cancelacion_router, prefix="/api")
+fastapi_app.include_router(reset_password_router, prefix="/api")
+fastapi_app.include_router(yape_router, prefix="/api")
+fastapi_app.include_router(fidelizacion_router, prefix="/api")
 
-@app.get("/")
+
+@fastapi_app.get("/")
 def root():
     return {
         "message": "API funcionando"
     }
+
+
+from app.services.socket_manager import create_socket_app
+app = create_socket_app(fastapi_app)
