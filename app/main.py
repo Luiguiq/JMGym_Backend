@@ -5,7 +5,7 @@ from sqlalchemy import text
 import os
 
 from app.core.database import engine, Base
-from app.models import Usuario, Clase, Reserva, Pago, GeneroClase, Instructor, InstructorGenero, Espacio, Administrador, Notificacion, Cancelacion, RestablecerContrasena, ReservarHistorialEstado, YapePago
+from app.models import Usuario, Clase, Reserva, Pago, GeneroClase, Instructor, InstructorGenero, Espacio, Administrador, Notificacion, Cancelacion, RestablecerContrasena, ReservaHistorialEstado, YapePago
 
 from app.routes.auth_routes import router as auth_router
 from app.routes.class_routes import router as class_router
@@ -22,6 +22,7 @@ from app.routes.cancelacion_routes import router as cancelacion_router
 from app.routes.notification_routes import router as notification_router
 from app.routes.reset_password_routes import router as reset_password_router
 from app.routes.yape_routes import router as yape_router
+from app.routes.fidelizacion_routes import router as fidelizacion_router
 
 _ON_VERCEL = os.environ.get("VERCEL")
 if not _ON_VERCEL:
@@ -98,6 +99,7 @@ app.include_router(notification_router, prefix="/api")
 app.include_router(cancelacion_router, prefix="/api")
 app.include_router(reset_password_router, prefix="/api")
 app.include_router(yape_router, prefix="/api")
+app.include_router(fidelizacion_router, prefix="/api")
 
 @app.get("/")
 def root():
