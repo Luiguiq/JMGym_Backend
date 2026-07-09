@@ -31,6 +31,7 @@ from app.services.notification_service import (
     notify_refund_request_cancelled,
 )
 from app.services.reservation_history_service import registrar_evento_reserva
+from app.services.fidelizacion_service import obtener_info_fidelizacion
 
 
 def _class_has_started(reservation: Reserva) -> bool:
@@ -136,6 +137,11 @@ def create_reservation_service(
             else EstadoPagoReserva.PAGADO
         )
 
+        fidelizacion = obtener_info_fidelizacion(db, user_id)
+        descuento_pct = fidelizacion["descuento_porcentaje"]
+        precio_base = float(cls.precio) if cls.precio else 0.0
+        monto_final = round(precio_base * (100 - descuento_pct) / 100, 2)
+
         reservation = Reserva(
             codigo_reserva=codigo,
             qr_checkin=qr_checkin,
@@ -143,7 +149,7 @@ def create_reservation_service(
             id_clase=data.class_id,
             id_espacio=espacio.id_espacio,
             metodo_pago=payment,
-            monto=float(cls.precio) if cls.precio else 0.0,
+            monto=monto_final,
             fecha_clase=cls.fecha,
             estado_pago=estado_pago,
             estado_reserva=EstadoReserva.ACTIVA,

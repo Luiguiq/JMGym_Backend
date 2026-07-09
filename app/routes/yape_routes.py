@@ -23,6 +23,7 @@ from app.repositories.yape_repository import (
     get_all_yape_pagos,
 )
 from app.services.notification_service import notify_payment_confirmed
+from app.services.fidelizacion_service import obtener_info_fidelizacion
 from app.enum.reservation_enums import EstadoPagoReserva, MetodoPago, EstadoReserva
 from app.models.class_model import Clase
 
@@ -101,6 +102,11 @@ def confirm_yape_payment(
     )
 
     from app.models.reservation_model import Reserva
+
+    fidelizacion = obtener_info_fidelizacion(db, current_user.id_usuario)
+    descuento_pct = fidelizacion["descuento_porcentaje"]
+    monto_final = round(yape_pago.monto * (100 - descuento_pct) / 100, 2)
+
     reserva = Reserva(
         codigo_reserva=codigo_reserva,
         id_usuario=current_user.id_usuario,
@@ -109,7 +115,7 @@ def confirm_yape_payment(
         metodo_pago=MetodoPago.YAPE,
         estado_pago=EstadoPagoReserva.PAGADO,
         estado_reserva=EstadoReserva.ACTIVA,
-        monto=yape_pago.monto,
+        monto=monto_final,
         fecha_clase=clase.fecha,
     )
     db.add(reserva)
@@ -121,7 +127,7 @@ def confirm_yape_payment(
         id_reserva=reserva.id_reserva,
         metodo_pago=MetodoPagoEnum.YAPE,
         estado=EstadoPagoEnum.CONFIRMADO,
-        monto=yape_pago.monto,
+        monto=monto_final,
         codigo_operacion=codigo_operacion,
         fecha_pago=datetime.now(),
     )
