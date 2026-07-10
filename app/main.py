@@ -58,13 +58,10 @@ fastapi_app = FastAPI(
 )
 
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "")
-default_origins = [
-    "http://localhost:5173",
-    "https://jm-gyms.vercel.app",
-]
 if ALLOWED_ORIGINS:
-    default_origins.extend(ALLOWED_ORIGINS.split(","))
-cors_kwargs = {"allow_origins": list(set(default_origins))}
+    cors_kwargs = {"allow_origins": ALLOWED_ORIGINS.split(",")}
+else:
+    cors_kwargs = {"allow_origin_regex": r"https?://(localhost|127\.0\.0\.1|.*\.vercel\.app)(:\d+)?"}
 
 fastapi_app.add_middleware(
     CORSMiddleware,
