@@ -8,6 +8,8 @@ from app.models.payment_model import Pago
 from app.models.reservation_model import Reserva
 from app.models.seat_model import Espacio
 from app.models.yape_model import YapePago
+from app.models.notification_model import Notificacion
+from app.models.cancelacion_model import Cancelacion
 from app.enum.class_enums import EstadoClase
 
 
@@ -91,6 +93,15 @@ def delete_class(db: Session, class_id: int) -> bool:
     )
 
     if reservation_ids:
+        db.query(Notificacion).filter(
+            Notificacion.id_reserva.in_(reservation_ids)
+        ).delete(synchronize_session=False)
+        db.query(Cancelacion).filter(
+            Cancelacion.id_reserva.in_(reservation_ids)
+        ).delete(synchronize_session=False)
+        db.query(YapePago).filter(
+            YapePago.id_reserva.in_(reservation_ids)
+        ).delete(synchronize_session=False)
         db.query(Pago).filter(Pago.id_reserva.in_(reservation_ids)).delete(
             synchronize_session=False
         )
