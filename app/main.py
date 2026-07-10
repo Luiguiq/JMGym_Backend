@@ -23,6 +23,8 @@ from app.routes.notification_routes import router as notification_router
 from app.routes.reset_password_routes import router as reset_password_router
 from app.routes.yape_routes import router as yape_router
 from app.routes.fidelizacion_routes import router as fidelizacion_router
+from app.routes.pexels_routes import router as pexels_router
+from app.routes.admin_media_routes import router as admin_media_router
 
 _ON_VERCEL = os.environ.get("VERCEL")
 if not _ON_VERCEL:
@@ -97,6 +99,8 @@ fastapi_app.include_router(cancelacion_router, prefix="/api")
 fastapi_app.include_router(reset_password_router, prefix="/api")
 fastapi_app.include_router(yape_router, prefix="/api")
 fastapi_app.include_router(fidelizacion_router, prefix="/api")
+fastapi_app.include_router(pexels_router, prefix="/api")
+fastapi_app.include_router(admin_media_router, prefix="/api")
 
 
 @fastapi_app.get("/")

@@ -7,8 +7,8 @@ from fastapi import APIRouter, UploadFile, File, HTTPException, status
 router = APIRouter(prefix="/upload", tags=["Upload"])
 
 UPLOAD_DIR = Path(os.path.join(os.path.dirname(__file__), "..", "uploads")).resolve()
-ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
-MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 MB
+ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".mp4", ".mov", ".webm", ".avi"}
+MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
 
 
 @router.post("")
@@ -17,7 +17,7 @@ async def upload_file(file: UploadFile = File(...)):
     if ext not in ALLOWED_EXTENSIONS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Formato no permitido. Usa: {', '.join(ALLOWED_EXTENSIONS)}",
+            detail=f"Formato no permitido. Usa: {', '.join(sorted(ALLOWED_EXTENSIONS))}",
         )
 
     contents = await file.read()
