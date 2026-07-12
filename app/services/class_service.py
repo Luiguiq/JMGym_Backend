@@ -2,6 +2,14 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.enum.class_enums import EstadoClase
+from app.enum.cancelacion_enums import MotivoCancelacion, CanceladoPor
+from app.enum.payment_enums import EstadoPago
+from app.enum.reservation_enums import EstadoPagoReserva, EstadoReserva, MetodoPago
+from app.models.cancelacion_model import Cancelacion
+from app.models.payment_model import Pago
+from app.models.reservation_model import Reserva
+from app.models.seat_model import Espacio
+from app.models.yape_model import YapePago
 from app.repositories.class_repository import (
     get_active_classes,
     get_today_classes,
@@ -22,12 +30,103 @@ from app.services.notification_service import (
     notify_class_schedule_change,
     notify_class_instructor_change,
     notify_class_cancelled,
+    notify_refund_processed,
 )
+from app.services.reservation_history_service import registrar_evento_reserva
 
 
 def _populate_instructor_name(cls_obj, schema: ClassResponseSchema) -> None:
     if cls_obj.instructor:
         schema.instructor_nombre = cls_obj.instructor.nombre_completo
+
+
+def _cancel_active_reservations_for_cancelled_class(db: Session, cls_obj) -> None:
+    reservations = (
+        db.query(Reserva)
+        .filter(
+            Reserva.id_clase == cls_obj.id_clase,
+            Reserva.estado_reserva == EstadoReserva.ACTIVA,
+        )
+        .all()
+    )
+    if not reservations:
+        return
+
+    refunds_to_notify = []
+
+    try:
+        for reservation in reservations:
+            old_estado_reserva = reservation.estado_reserva
+            old_estado_pago = reservation.estado_pago
+
+            seat = db.query(Espacio).filter(Espacio.id_espacio == reservation.id_espacio).first()
+            if seat:
+                seat.estado = "DISPONIBLE"
+
+            reservation.estado_reserva = EstadoReserva.CANCELADA
+
+            if cls_obj.cupos_disponibles is not None:
+                cls_obj.cupos_disponibles = min(
+                    cls_obj.cupos_totales or cls_obj.cupos_disponibles + 1,
+                    cls_obj.cupos_disponibles + 1,
+                )
+
+            cancelacion = Cancelacion(
+                id_reserva=reservation.id_reserva,
+                motivo=MotivoCancelacion.CLASE_CANCELADA,
+                detalle="Reserva cancelada automáticamente porque la clase fue anulada por administración",
+                cancelado_por=CanceladoPor.ADMIN,
+            )
+            db.add(cancelacion)
+
+            registrar_evento_reserva(
+                db,
+                reservation,
+                "RESERVA_CANCELADA",
+                estado_reserva_anterior=old_estado_reserva,
+                estado_reserva_nuevo=reservation.estado_reserva,
+                descripcion="La reserva fue cancelada porque la clase fue anulada por administración.",
+                actor_tipo="ADMIN",
+            )
+
+            if (
+                reservation.metodo_pago == MetodoPago.YAPE
+                and reservation.estado_pago == EstadoPagoReserva.PAGADO
+            ):
+                reservation.estado_pago = EstadoPagoReserva.REEMBOLSADO
+
+                pagos = db.query(Pago).filter(Pago.id_reserva == reservation.id_reserva).all()
+                for pago in pagos:
+                    pago.estado = EstadoPago.REEMBOLSADO
+
+                yape_pagos = db.query(YapePago).filter(YapePago.id_reserva == reservation.id_reserva).all()
+                for yape_pago in yape_pagos:
+                    yape_pago.estado = "REEMBOLSADO"
+
+                registrar_evento_reserva(
+                    db,
+                    reservation,
+                    "PAGO_REEMBOLSADO",
+                    estado_pago_anterior=old_estado_pago,
+                    estado_pago_nuevo=reservation.estado_pago,
+                    descripcion="El pago Yape fue reembolsado automáticamente porque la clase fue anulada.",
+                    actor_tipo="ADMIN",
+                )
+
+                refunds_to_notify.append(
+                    (reservation.id_usuario, float(reservation.monto), cls_obj.nombre_clase, reservation.id_reserva)
+                )
+
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+
+    for user_id, amount, class_name, reservation_id in refunds_to_notify:
+        try:
+            notify_refund_processed(db, user_id, amount, class_name, reservation_id)
+        except Exception:
+            pass
 
 
 def get_classes_service(db: Session) -> list[ClassResponseSchema]:
@@ -97,6 +196,7 @@ def update_class_service(
     if old_estado != EstadoClase.CANCELADA and cls.estado == EstadoClase.CANCELADA:
         motivo = data.motivo_cancelacion or ""
         notify_class_cancelled(db, cls, motivo)
+        _cancel_active_reservations_for_cancelled_class(db, cls)
 
     schema = ClassResponseSchema.model_validate(cls)
     _populate_instructor_name(cls, schema)
