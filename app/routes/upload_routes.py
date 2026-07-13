@@ -6,7 +6,13 @@ from fastapi import APIRouter, UploadFile, File, HTTPException, status
 
 router = APIRouter(prefix="/upload", tags=["Upload"])
 
-UPLOAD_DIR = Path(os.path.join(os.path.dirname(__file__), "..", "uploads")).resolve()
+_ON_VERCEL = os.environ.get("VERCEL")
+if _ON_VERCEL:
+    UPLOAD_DIR = Path("/tmp/uploads")
+else:
+    UPLOAD_DIR = Path(os.path.join(os.path.dirname(__file__), "..", "uploads")).resolve()
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".mp4", ".mov", ".webm", ".avi"}
 MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
 
