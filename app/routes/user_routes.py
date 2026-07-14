@@ -113,7 +113,9 @@ def update_my_profile(
 
 @router.get("", response_model=list[UserResponseSchema])
 def list_users(db: Session = Depends(get_db), admin: Session = Depends(get_current_admin)):
-    return db.query(Usuario).all()
+    users = db.query(Usuario).all()
+    users.sort(key=lambda u: u.fecha_registro if u.fecha_registro else datetime.min, reverse=True)
+    return users
 
 
 @router.get("/{user_id}", response_model=UserResponseSchema)

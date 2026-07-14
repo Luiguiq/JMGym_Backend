@@ -253,6 +253,39 @@ def notify_class_cancelled(
     return results
 
 
+def notify_class_completed(
+    db: Session,
+    class_obj: Clase,
+) -> list[NotificationResponseSchema]:
+    titulo = "Clase completada"
+    mensaje = (
+        f"La clase {class_obj.nombre_clase} del {class_obj.fecha} "
+        f"se ha completado con éxito. Gracias por participar."
+    )
+    reservas = (
+        db.query(Reserva)
+        .filter(
+            Reserva.id_clase == class_obj.id_clase,
+            Reserva.estado_reserva == "ACTIVA",
+        )
+        .all()
+    )
+    results = []
+    for r in reservas:
+        n = _create_notification(
+            db,
+            user_id=r.id_usuario,
+            titulo=titulo,
+            mensaje=mensaje,
+            tipo=TipoNotificacion.NOTIFICACION_GENERAL,
+            requiere_respuesta=False,
+            id_reserva=r.id_reserva,
+            id_clase=class_obj.id_clase,
+        )
+        results.append(n)
+    return results
+
+
 def notify_new_class(
     db: Session, user_ids: list[int], class_obj: Clase
 ) -> list[NotificationResponseSchema]:

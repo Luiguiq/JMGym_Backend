@@ -1,3 +1,4 @@
+from datetime import date
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -5,6 +6,7 @@ from app.enum.class_enums import EstadoClase
 from app.enum.cancelacion_enums import MotivoCancelacion, CanceladoPor
 from app.enum.payment_enums import EstadoPago
 from app.enum.reservation_enums import EstadoPagoReserva, EstadoReserva, MetodoPago
+from app.models.class_model import Clase
 from app.models.cancelacion_model import Cancelacion
 from app.models.payment_model import Pago
 from app.models.reservation_model import Reserva
@@ -12,6 +14,7 @@ from app.models.seat_model import Espacio
 from app.models.yape_model import YapePago
 from app.repositories.class_repository import (
     get_active_classes,
+    get_all_classes,
     get_today_classes,
     get_class_by_id,
     get_classes_by_instructor,
@@ -30,6 +33,7 @@ from app.services.notification_service import (
     notify_class_schedule_change,
     notify_class_instructor_change,
     notify_class_cancelled,
+    notify_class_completed,
     notify_refund_processed,
 )
 from app.services.reservation_history_service import registrar_evento_reserva
@@ -130,7 +134,19 @@ def _cancel_active_reservations_for_cancelled_class(db: Session, cls_obj) -> Non
 
 
 def get_classes_service(db: Session) -> list[ClassResponseSchema]:
-    classes = get_active_classes(db)
+    auto_complete_past_classes(db)
+    classes = get_all_classes(db)
+    result = []
+    for c in classes:
+        schema = ClassResponseSchema.model_validate(c)
+        _populate_instructor_name(c, schema)
+        result.append(schema)
+    return result
+
+
+def get_all_classes_admin_service(db: Session) -> list[ClassResponseSchema]:
+    auto_complete_past_classes(db)
+    classes = get_all_classes(db)
     result = []
     for c in classes:
         schema = ClassResponseSchema.model_validate(c)
@@ -228,6 +244,27 @@ def get_classes_by_instructor_service(db: Session, instructor_id: int) -> list[C
         _populate_instructor_name(c, schema)
         result.append(schema)
     return result
+
+
+def auto_complete_past_classes(db: Session) -> None:
+    today = date.today()
+    past_active = (
+        db.query(Clase)
+        .filter(
+            Clase.fecha < today,
+            Clase.estado == EstadoClase.ACTIVA,
+        )
+        .all()
+    )
+    for cls in past_active:
+        cls.estado = EstadoClase.COMPLETA
+    if past_active:
+        db.commit()
+        for cls in past_active:
+            try:
+                notify_class_completed(db, cls)
+            except Exception:
+                pass
 
 
 def get_class_seats_service(db: Session, class_id: int) -> list[SeatResponseSchema]:

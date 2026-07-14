@@ -5,13 +5,14 @@ from app.security import get_db
 from app.models.class_model import Clase
 from app.models.reservation_model import Reserva
 from app.models.user_model import Usuario
+from app.enum.class_enums import EstadoClase
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
 
 @router.get("/stats")
 def admin_stats(db: Session = Depends(get_db)):
-    total_classes = db.query(Clase).count()
+    total_classes = db.query(Clase).filter(Clase.estado == EstadoClase.ACTIVA).count()
     total_reservations = db.query(Reserva).count()
     total_clients = db.query(Usuario).count()
     return {

@@ -23,6 +23,15 @@ def get_active_classes(db: Session) -> list[Clase]:
         .filter(
             (Clase.estado == EstadoClase.ACTIVA) | (Clase.estado.is_(None))
         )
+        .order_by(Clase.fecha.desc(), Clase.hora_inicio)
+        .all()
+    )
+
+
+def get_all_classes(db: Session) -> list[Clase]:
+    return (
+        db.query(Clase)
+        .order_by(Clase.fecha.desc(), Clase.hora_inicio)
         .all()
     )
 
